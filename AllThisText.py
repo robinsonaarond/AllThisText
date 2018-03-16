@@ -61,7 +61,7 @@ def spawn_items():
                 "description" : "It is a picture of the moon.",
                 "examined"    : "You see nothing special about |g.item['picture'].name|.  |g.item['picture'].description",
                 "takeable"    : True,
-                "taketext"    : ""
+                "taketext"    : ", and put it in your pocket",
             },
             {
                 "id"          : "belt",
@@ -134,11 +134,15 @@ def __action_take(g,textinput,action):
     for match in action.matches:
         textinput = textinput.replace(match, "").strip()
     if len(textinput.split()) == 1:
-        item = g.item[textinput]
+        try:
+            item = g.item[textinput]
+        except:
+            print "I'm not sure what you want me to take."
+            return
         # Assume it's an Item
         if textinput not in g.player.inventory:
             if item.takeable:
-                print "You %s the %s%s." % (action,item.name,item.taketext)
+                print "You take the %s%s." % (item.name,item.taketext)
                 g.player.inventory.append(textinput)
             else:
                 print item.taketext
@@ -146,7 +150,17 @@ def __action_take(g,textinput,action):
             print "You can't take the %s because you already have it." % item.name
 
 def __action_drop(g,textinput,action):
-    pass
+    text = textinput.split()
+    if len(text) > 1:
+        itemname = " ".join(text[1:])
+        if itemname in g.player.inventory:
+            print "You drop the %s." % g.item[itemname].name
+            g.player.inventory.remove(itemname)
+            g.rooms[g.player.room].items.append(itemname)
+        else:
+            print "You don't actually have the %s" % g.item[itemname].name
+    else:
+        print "What do you want me to drop?"
 
 def __action_look(g,textinput,action):
     # If there is an argument, it must be an object
@@ -160,6 +174,14 @@ def __action_look(g,textinput,action):
     # If no argument, it must be the room.  Use the short description
     else:
         print process_desc(g.rooms[g.player.room].shortdesc)
+
+def __action_inventory(g,textinput,action):
+    print "You take stock of your possessions.  You are carrying the following:\n"
+    if len(g.player.inventory) == 0:
+        print "Nothing"
+    else:
+        for item in g.player.inventory:
+            print "  ", item
 
 def __action_exit(g,textinput,action):
     print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
@@ -176,7 +198,7 @@ def process_action(g,textinput):
     action_dict = [ 
         {
             "id"            : "take",
-            "matches"       : [ "take", "grab", "pick up" ],
+            "matches"       : [ "take", "grab", "pick up", "get", "steal" ],
             "description"   : "For putting items in your inventory.",
             "run"           : __action_take
         },
@@ -191,6 +213,12 @@ def process_action(g,textinput):
             "matches"       : [ "look", "l", "examine" ],
             "description"   : "Take a look around you.",
             "run"           : __action_look
+        },
+        {
+            "id"            : "inventory",
+            "matches"       : [ "inventory", "i" ],
+            "description"   : "You take stock of your possessions.",
+            "run"           : __action_inventory
         },
         {
             "id"            : "exit",
@@ -208,7 +236,7 @@ def process_action(g,textinput):
     if textinput is not "":
         action_exists = False
         for action in actions.keys():
-            if any(x in textinput for x in actions[action].matches):
+            if any(textinput.startswith(x) for x in actions[action].matches):
                 actions[action].run(g,textinput,actions[action])
                 action_exists = True
                 break

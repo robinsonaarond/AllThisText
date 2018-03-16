@@ -11,18 +11,20 @@
 # Game completion percentage
 # Score (usually a product of secrets found/puzzles solved/% game completed)
 
+#import re
 import time
-import re
+import sys
 
 class Globals():
     def __init__(self): 
         self.moves            = 0
         self.points           = 0
+        self.points_total     = 50
         self.secrets_found    = 0
         self.total_secrets    = 0
         self.puzzles_solved   = 0
         self.total_puzzles    = 0
-        self.sleep_interval   = 1.0
+        self.sleep_interval   = 0.1
         self.item             = spawn_items()
         self.rooms            = spawn_rooms()
 
@@ -57,13 +59,16 @@ def spawn_items():
                 "id"          : "picture", 
                 "name"        : "PICTURE OF THE MOON", 
                 "description" : "It is a picture of the moon.",
-                "takeable"    : True
+                "examined"    : "You see nothing special about |g.item['picture'].name|.  |g.item['picture'].description",
+                "takeable"    : True,
+                "taketext"    : ""
             },
             {
-                "id"          : "conveyor",
+                "id"          : "belt",
                 "name"        : "CONVEYOR BELT",
                 "description" : "NULL",
-                "takeable"    : False
+                "takeable"    : False,
+                "taketext"    : "Only a moron would try to take a CONVEYOR BELT."
             }
         ]
     for item in item_list:
@@ -79,9 +84,12 @@ def spawn_rooms():
             {
                 "id"          : "start",
                 "name"        : "Factory Floor",
-                "description" : "You are in a factory.\n\nIt's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.\n\nIn front of you is a short |g.item['conveyor'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p>\n\nIn your hand is a |g.item['picture'].name|.",
+                "description" : "You are in a factory.\n\nIt's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.\n\nIn front of you is a short |g.item['belt'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p>\n\nIn your hand is a |g.item['picture'].name|.",
+                "shortdesc"   : "Factory\n\nYou are in a factory.  It's an enormous room.  You see a |g.item['belt'].name| in front of you.",
                 "exits"       : { "n": None, "s": None, "e": "boiler", "w": None },
-                "hint"        : "(There is a conveyor belt though.  It is stopped.)"
+                "hint"        : "(There is a conveyor belt though.  It is stopped.)",
+                "items"       : [],
+                "itemstext"   : "  On the floor you see |','.join(g.rooms[g.player.room].items|."
             }
         ]
     for room in room_list:
@@ -91,8 +99,7 @@ def spawn_rooms():
         object_list[room['id']] = obj
     return object_list
 
-def enter_room(g):
-    room_desc = g.rooms[g.player.room].description
+def process_desc(room_desc):
     room_sanitized = []
     # Parse out the template code
     while "|" in room_desc:
@@ -102,8 +109,17 @@ def enter_room(g):
                 room_sanitized.append(eval(line))
             else:
                 room_sanitized.append(line)
-    # Recombine and then parse <p> markup for pauses
-    for line in "".join(room_sanitized).split("<p>"):
+    return "".join(room_sanitized)
+
+def enter_room(g):
+    room = g.rooms[g.player.room]
+    room_desc = room.description
+    if len(room.items) > 0:
+        room_desc = room_desc + room.itemstext
+    room_sanitized = process_desc(room_desc)
+
+    # Parse <p> markup for pauses
+    for line in room_sanitized.split("<p>"):
         if line:
             print line
             time.sleep(g.sleep_interval)
@@ -115,7 +131,6 @@ def reset_game(g):
     enter_room(g)
 
 def __action_take(g,textinput,action):
-    print "Let's try taking something."
     for match in action.matches:
         textinput = textinput.replace(match, "").strip()
     if len(textinput.split()) == 1:
@@ -123,10 +138,32 @@ def __action_take(g,textinput,action):
         # Assume it's an Item
         if textinput not in g.player.inventory:
             if item.takeable:
-                print "You %s the %s" % (action,item.name)
+                print "You %s the %s%s." % (action,item.name,item.taketext)
                 g.player.inventory.append(textinput)
+            else:
+                print item.taketext
         else:
-            print "You already have the %s!" % item.name
+            print "You can't take the %s because you already have it." % item.name
+
+def __action_drop(g,textinput,action):
+    pass
+
+def __action_look(g,textinput,action):
+    # If there is an argument, it must be an object
+    if len(textinput.split()) >= 2:
+        action = textinput.split()[0]
+        item_name = textinput.split()[-1]
+        if action == "examine" and hasattr(g.item[item_name], 'examined'):
+            print process_desc(g.item[item_name].examined)
+        else:
+            print "You look at the %s.  %s" % (g.item[item_name].name, process_desc(g.item[item_name].description))
+    # If no argument, it must be the room.  Use the short description
+    else:
+        print process_desc(g.rooms[g.player.room].shortdesc)
+
+def __action_exit(g,textinput,action):
+    print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
+    sys.exit(0)
 
 def process_action(g,textinput):
     # Actions. Look/Inspect/Go/Take/Eat
@@ -142,6 +179,24 @@ def process_action(g,textinput):
             "matches"       : [ "take", "grab", "pick up" ],
             "description"   : "For putting items in your inventory.",
             "run"           : __action_take
+        },
+        {
+            "id"            : "drop",
+            "matches"       : [ "drop" ],
+            "description"   : "For putting items in the room you're in.",
+            "run"           : __action_drop
+        },
+        {
+            "id"            : "look",
+            "matches"       : [ "look", "l", "examine" ],
+            "description"   : "Take a look around you.",
+            "run"           : __action_look
+        },
+        {
+            "id"            : "exit",
+            "matches"       : [ "exit" ],
+            "description"   : "Leave the game forever.  Actually you can play again at any time.",
+            "run"           : __action_exit
         }
     ]
     for action in action_dict:
@@ -150,20 +205,22 @@ def process_action(g,textinput):
             setattr(obj, k, action[k])
         actions[action['id']] = obj
     
-    for action in actions.keys():
-        if any(x in textinput for x in actions[action].matches):
-            actions[action].run(g,textinput,actions[action])
-            break
-        elif textinput is "":
-            return
-        else:
-            print "I don't know how to do that."
+    if textinput is not "":
+        action_exists = False
+        for action in actions.keys():
+            if any(x in textinput for x in actions[action].matches):
+                actions[action].run(g,textinput,actions[action])
+                action_exists = True
+                break
+        if not action_exists:
+            print """I don't understand "%s".""" % textinput
 
 def run_game(g):
     reset_game(g)
     while True:
-        textinput = raw_input("> ")
-        process_action(g, textinput)
+        textinput = raw_input("\n> ")
+        process_action(g, textinput.lower())
+        g.moves += 1
 
 if __name__ == "__main__":
     g = Globals()

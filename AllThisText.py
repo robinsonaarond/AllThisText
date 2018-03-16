@@ -50,6 +50,7 @@ class Item():
         self.location    = "player"
         self.accessible  = True
         self.visible     = True
+        self.takeable    = True
 
 # Statically generated list of all Items in the game in their initial state
 def spawn_items():
@@ -85,11 +86,11 @@ def spawn_rooms():
                 "id"          : "start",
                 "name"        : "Factory Floor",
                 "description" : "You are in a factory.\n\nIt's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.\n\nIn front of you is a short |g.item['belt'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p>\n\nIn your hand is a |g.item['picture'].name|.",
-                "shortdesc"   : "Factory\n\nYou are in a factory.  It's an enormous room.  You see a |g.item['belt'].name| in front of you.",
+                "shortdesc"   : "You are on the factory floor.  It's an enormous room.  You see a |g.item['belt'].name| in front of you.",
                 "exits"       : { "n": None, "s": None, "e": "boiler", "w": None },
                 "hint"        : "(There is a conveyor belt though.  It is stopped.)",
                 "items"       : [],
-                "itemstext"   : "  On the floor you see |','.join(g.rooms[g.player.room].items|."
+                "itemstext"   : "  On the floor you see |','.join(g.rooms[g.player.room].items)|."
             }
         ]
     for room in room_list:
@@ -137,7 +138,7 @@ def __action_take(g,textinput,action):
         try:
             item = g.item[textinput]
         except:
-            print "I'm not sure what you want me to take."
+            print "How can you take '%s'?  I don't know what it is." % textinput
             return
         # Assume it's an Item
         if textinput not in g.player.inventory:
@@ -153,6 +154,11 @@ def __action_drop(g,textinput,action):
     text = textinput.split()
     if len(text) > 1:
         itemname = " ".join(text[1:])
+        try:
+            item = g.item[itemname]
+        except:
+            print "I'm not sure what '%s' even is, let alone know how to drop it." % itemname
+            return
         if itemname in g.player.inventory:
             print "You drop the %s." % g.item[itemname].name
             g.player.inventory.remove(itemname)
@@ -173,7 +179,12 @@ def __action_look(g,textinput,action):
             print "You look at the %s.  %s" % (g.item[item_name].name, process_desc(g.item[item_name].description))
     # If no argument, it must be the room.  Use the short description
     else:
-        print process_desc(g.rooms[g.player.room].shortdesc)
+        room = g.rooms[g.player.room]
+        if len(room.items) > 0:
+            room_desc = room.shortdesc + room.itemstext
+        else:
+            room_desc = room.shortdesc
+        print process_desc(room_desc)
 
 def __action_inventory(g,textinput,action):
     print "You take stock of your possessions.  You are carrying the following:\n"

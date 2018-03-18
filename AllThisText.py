@@ -69,7 +69,7 @@ def spawn_items():
                 "name"        : "CONVEYOR BELT",
                 "description" : "NULL",
                 "takeable"    : False,
-                "taketext"    : "Only a moron would try to take a CONVEYOR BELT."
+                "taketext"    : "Moving the CONVEYOR BELT would require a TEAM LIFT, and currently no one is available to help."
             }
         ]
     for item in item_list:
@@ -88,7 +88,8 @@ def spawn_rooms():
                 "description" : "You are in a factory.\n\nIt's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.\n\nIn front of you is a short |g.item['belt'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p>\n\nIn your hand is a |g.item['picture'].name|.",
                 "shortdesc"   : "You are on the factory floor.  It's an enormous room.  You see a |g.item['belt'].name| in front of you.",
                 "exits"       : { "n": None, "s": None, "e": "boiler", "w": None },
-                "hint"        : "(There is a conveyor belt though.  It is stopped.)",
+                "hint"        : "\n(There is a conveyor belt though.  It is stopped.)",
+                "hint_length" : 6,
                 "items"       : [],
                 "itemstext"   : "  On the floor you see |','.join(g.rooms[g.player.room].items)|."
             }
@@ -103,6 +104,8 @@ def spawn_rooms():
 def process_desc(room_desc):
     room_sanitized = []
     # Parse out the template code
+    if not "|" in room_desc:
+        return room_desc
     while "|" in room_desc:
         room_desc = room_desc.split('|')
         for line in room_desc:
@@ -115,6 +118,7 @@ def process_desc(room_desc):
 def enter_room(g):
     room = g.rooms[g.player.room]
     room_desc = room.description
+    room.time_in_room = 0
     if len(room.items) > 0:
         room_desc = room_desc + room.itemstext
     room_sanitized = process_desc(room_desc)
@@ -194,6 +198,9 @@ def __action_inventory(g,textinput,action):
         for item in g.player.inventory:
             print "  ", item
 
+def __action_cant(g,textinput,action):
+    print "You can't do that right now."
+
 def __action_exit(g,textinput,action):
     print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
     sys.exit(0)
@@ -232,6 +239,12 @@ def process_action(g,textinput):
             "run"           : __action_inventory
         },
         {
+            "id"            : "nonono",
+            "matches"       : [ "rip", "eat", "kill", "sing", "love" ],
+            "description"   : "All the things you can't do in this game.",
+            "run"           : __action_cant
+        },
+        {
             "id"            : "exit",
             "matches"       : [ "exit" ],
             "description"   : "Leave the game forever.  Actually you can play again at any time.",
@@ -257,6 +270,14 @@ def process_action(g,textinput):
 def run_game(g):
     reset_game(g)
     while True:
+        room = g.rooms[g.player.room]
+        try:
+            room.time_in_room += 1
+            if room.time_in_room > room.hint_length:
+                print process_desc(room.hint)
+        except Exception as e:
+            print e
+            pass
         textinput = raw_input("\n> ")
         process_action(g, textinput.lower())
         g.moves += 1

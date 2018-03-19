@@ -11,7 +11,6 @@
 # Game completion percentage
 # Score (usually a product of secrets found/puzzles solved/% game completed)
 
-#import re
 import time
 import sys
 from random import choice
@@ -78,7 +77,7 @@ def spawn_items():
             {
                 "id"          : "belt",
                 "name"        : "CONVEYOR BELT",
-                "matches"     : [ "conveyor", "belt", "conveyor belt", "c" ],
+                "matches"     : [ "conveyor", "belt", "conveyor belt" ],
                 "description" : "The belt stretches onward to the right.  On the left side is an opening.",
                 "takeable"    : False,
                 "taketext"    : "Moving the CONVEYOR BELT would require a TEAM LIFT, and currently no one is available to help."
@@ -192,10 +191,10 @@ def process_action(g,textinput):
         # Assume it's an Item
         if item.id not in g.player.inventory:
             if item.takeable:
-                print "You take the %s%s." % (item.name,print_desc(item.taketext))
-                g.player.inventory.append(item_id)
+                print "You take the %s%s." % (item.name,print_desc(item.taketext, output=False))
+                g.player.inventory.append(item.id)
             else:
-                print print_desc(item.taketext)
+                print_desc(item.taketext)
         else:
             print "You can't take the %s because you already have it." % item.name
     
@@ -222,7 +221,6 @@ def process_action(g,textinput):
         if len(textinput.split()) >= 2:
             action = textinput.split()[0]
             item_name = textinput.replace(action, "", 1).strip()
-            #print item_name
             try:
                 item = get_item(item_name)
             except:
@@ -360,8 +358,10 @@ def run_game(g):
             if room.time_in_room == room.hint_length + 1 and not room.running:
                 print_desc(room.hint)
         except Exception as e:
-            print e
+            print "ERROR", e
             pass
+        # The old games don't support awesome features like readline
+        # or autocomplete, so I'm not going to do it here.
         textinput = raw_input("\n> ")
         process_action(g, textinput.lower())
         g.moves += 1

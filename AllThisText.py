@@ -161,81 +161,6 @@ def get_item(textinput):
             break
     return item
 
-def __action_take(g,textinput,action):
-    for match in action.matches:
-        textinput = textinput.replace(match, "").strip()
-    
-    if len(textinput.split()) == 1:
-        try:
-            item = get_item(textinput)
-        except:
-            print "How can you take '%s'?  I don't know what it is." % textinput
-            return
-        # Assume it's an Item
-        if item.id not in g.player.inventory:
-            if item.takeable:
-                print "You take the %s%s." % (item.name,item.taketext)
-                g.player.inventory.append(item_id)
-            else:
-                print item.taketext
-        else:
-            print "You can't take the %s because you already have it." % item.name
-
-def __action_drop(g,textinput,action):
-    text = textinput.split()
-    if len(text) > 1:
-        itemname = " ".join(text[1:])
-        try:
-            item = g.item[itemname]
-        except:
-            print "I'm not sure what '%s' even is, let alone know how to drop it." % itemname
-            return
-        if itemname in g.player.inventory:
-            print "You drop the %s." % g.item[itemname].name
-            g.player.inventory.remove(itemname)
-            g.rooms[g.player.room].items.append(itemname)
-        else:
-            print "You don't actually have the %s" % g.item[itemname].name
-    else:
-        print "What do you want me to drop?"
-
-def __action_look(g,textinput,action):
-    # If there is an argument, it must be an object
-    if len(textinput.split()) >= 2:
-        action = textinput.split()[0]
-        item_name = textinput.split()[-1]
-        try:
-            item = get_item(item_name)
-        except:
-            print "You don't see any '%s' here." % textinput
-            return
-        if action == "examine" and hasattr(item, 'examined'):
-            print_desc(item.examined)
-        else:
-            print "You look at the %s.  %s" % (item.name, print_desc(item.description, output=False))
-    # If no argument, it must be the room.  Use the short description
-    else:
-        room = g.rooms[g.player.room]
-        if len(room.items) > 0:
-            room_desc = room.shortdesc + room.itemstext
-        else:
-            room_desc = room.shortdesc
-        print_desc(room_desc)
-
-def __action_inventory(g,textinput,action):
-    print "You take stock of youiir possessions.  You are carrying the following:\n"
-    if len(g.player.inventory) == 0:
-        print "Nothing"
-    else:
-        for item in g.player.inventory:
-            print "  ", item
-
-def __action_cant(g,textinput,action):
-    print "You can't do that right now."
-
-def __action_exit(g,textinput,action):
-    print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
-    sys.exit(0)
 
 def process_action(g,textinput):
     # Actions. Look/Inspect/Go/Take/Eat
@@ -243,6 +168,84 @@ def process_action(g,textinput):
     class Action():
         def __init__(self):
             pass
+
+    def __action_take(g,textinput,action):
+        for match in action.matches:
+            textinput = textinput.replace(match, "").strip()
+        
+        if len(textinput.split()) == 1:
+            try:
+                item = get_item(textinput)
+            except:
+                print "How can you take '%s'?  I don't know what it is." % textinput
+                return
+            # Assume it's an Item
+            if item.id not in g.player.inventory:
+                if item.takeable:
+                    print "You take the %s%s." % (item.name,item.taketext)
+                    g.player.inventory.append(item_id)
+                else:
+                    print item.taketext
+            else:
+                print "You can't take the %s because you already have it." % item.name
+    
+    def __action_drop(g,textinput,action):
+        text = textinput.split()
+        if len(text) > 1:
+            itemname = " ".join(text[1:])
+            try:
+                item = g.item[itemname]
+            except:
+                print "I'm not sure what '%s' even is, let alone know how to drop it." % itemname
+                return
+            if itemname in g.player.inventory:
+                print "You drop the %s." % g.item[itemname].name
+                g.player.inventory.remove(itemname)
+                g.rooms[g.player.room].items.append(itemname)
+            else:
+                print "You don't actually have the %s" % g.item[itemname].name
+        else:
+            print "What do you want me to drop?"
+    
+    def __action_look(g,textinput,action):
+        # If there is an argument, it must be an object
+        if len(textinput.split()) >= 2:
+            action = textinput.split()[0]
+            item_name = textinput.split()[-1]
+            try:
+                item = get_item(item_name)
+            except:
+                print "You don't see any '%s' here." % textinput
+                return
+            if action == "examine" and hasattr(item, 'examined'):
+                print_desc(item.examined)
+            else:
+                print "You look at the %s.  %s" % (item.name, print_desc(item.description, output=False))
+        # If no argument, it must be the room.  Use the short description
+        else:
+            room = g.rooms[g.player.room]
+            if len(room.items) > 0:
+                room_desc = room.shortdesc + room.itemstext
+            else:
+                room_desc = room.shortdesc
+            print_desc(room_desc)
+    
+    def __action_inventory(g,textinput,action):
+        print "You take stock of youiir possessions.  You are carrying the following:\n"
+        if len(g.player.inventory) == 0:
+            print "Nothing"
+        else:
+            for item in g.player.inventory:
+                print "  ", item
+    
+    def __action_cant(g,textinput,action):
+        print "You can't do that right now."
+    
+    def __action_exit(g,textinput,action):
+        print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
+        sys.exit(0)
+
+
     #action_dict = [ "eat", "play", "love", "go", "exit", "quit" ]
     actions = {}
     action_dict = [ 

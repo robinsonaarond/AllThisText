@@ -14,6 +14,7 @@
 #import re
 import time
 import sys
+from random import choice
 
 class Globals():
     def __init__(self): 
@@ -40,7 +41,7 @@ class Room():
 class Player():
     def __init__(self):
         self.name             = ""
-        self.room             = "start"
+        self.room             = "factory"
         self.inventory        = []
 
 class Item():
@@ -65,6 +66,15 @@ def spawn_items():
                 "takeable"    : True,
                 "taketext"    : ", and put it in your pocket",
             },
+            {   
+                "id"          : "widget", 
+                "name"        : "WIDGET",
+                "description" : "You see nothing special about |g.item['widget'].name|.  It is a widget.",
+                "examined"    : "It is a standard widget, ready for processing.",
+                "matches"     : [ "widget" ],
+                "takeable"    : False,
+                "taketext"    : "You can't take the |g.item['widget'].name|.",
+            },
             {
                 "id"          : "belt",
                 "name"        : "CONVEYOR BELT",
@@ -85,15 +95,16 @@ def spawn_rooms():
     object_list = {}
     room_list = [
             {
-                "id"          : "start",
+                "id"          : "factory",
                 "name"        : "Factory Floor",
                 "description" : "You are in a factory.\n\nIt's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.\n\nIn front of you is a short |g.item['belt'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p>\n\nIn your hand is a |g.item['picture'].name|.",
                 "shortdesc"   : "You are on the factory floor.  It's an enormous room.  You see a |g.item['belt'].name| in front of you.",
                 "exits"       : { "n": None, "s": None, "e": "boiler", "w": None },
                 "hint"        : "\n<p><p>(There is a conveyor belt though.  It is stopped.)",
                 "hint_length" : 6,
+                "running"     : False,
                 "items"       : [],
-                "itemstext"   : "  On the floor you see |','.join(g.rooms[g.player.room].items)|."
+                "itemstext"   : "  You also see: |', '.join([g.item[x].name for x in g.rooms[g.player.room].items])|."
             }
         ]
     for room in room_list:
@@ -142,7 +153,7 @@ def enter_room(g):
     print_desc(room_desc)
 
 def reset_game(g):
-    g.player.room = "start"
+    g.player.room = "factory"
     g.player.name = ""
     g.player.inventory = [ 'picture' ]
     enter_room(g)
@@ -171,23 +182,22 @@ def process_action(g,textinput):
 
     def __action_take(g,textinput,action):
         for match in action.matches:
-            textinput = textinput.replace(match, "").strip()
-        
-        if len(textinput.split()) == 1:
-            try:
-                item = get_item(textinput)
-            except:
-                print "How can you take '%s'?  I don't know what it is." % textinput
-                return
-            # Assume it's an Item
-            if item.id not in g.player.inventory:
-                if item.takeable:
-                    print "You take the %s%s." % (item.name,item.taketext)
-                    g.player.inventory.append(item_id)
-                else:
-                    print item.taketext
+            textinput = textinput.replace(match, "", 1).strip()
+            break
+        try:
+            item = get_item(textinput)
+        except:
+            print "How can you take '%s'?  I don't know what it is." % textinput
+            return
+        # Assume it's an Item
+        if item.id not in g.player.inventory:
+            if item.takeable:
+                print "You take the %s%s." % (item.name,print_desc(item.taketext))
+                g.player.inventory.append(item_id)
             else:
-                print "You can't take the %s because you already have it." % item.name
+                print print_desc(item.taketext)
+        else:
+            print "You can't take the %s because you already have it." % item.name
     
     def __action_drop(g,textinput,action):
         text = textinput.split()
@@ -211,7 +221,8 @@ def process_action(g,textinput):
         # If there is an argument, it must be an object
         if len(textinput.split()) >= 2:
             action = textinput.split()[0]
-            item_name = textinput.split()[-1]
+            item_name = textinput.replace(action, "", 1).strip()
+            #print item_name
             try:
                 item = get_item(item_name)
             except:
@@ -231,22 +242,40 @@ def process_action(g,textinput):
             print_desc(room_desc)
     
     def __action_inventory(g,textinput,action):
-        print "You take stock of youiir possessions.  You are carrying the following:\n"
+        print "You take stock of your possessions.  You are carrying the following:\n"
         if len(g.player.inventory) == 0:
             print "Nothing"
         else:
             for item in g.player.inventory:
                 print "  ", item
     
+    def __action_start(g,textinput,action):
+        if len(textinput.split()) > 1:
+            if g.player.room == "factory":
+                print_desc("<p>.\n<p><p>..\n<p><p>...\n<p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.\n The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
+                g.rooms[g.player.room].items.append('widget')
+                g.rooms[g.player.room].running = True
+            else:
+                print "There's nothing here to start."
+        else:
+            print choice(["What do you want me to start?","You want to start something?"])
+    
+    def __action_go(g,textinput,action):
+        print "There are people at conveyor belts as far as the eye can see."
+    
     def __action_cant(g,textinput,action):
         print "You can't do that right now."
+    
+    def __action_help(g,textinput,action):
+        if len(textinput.split()) == 1:
+            print "Type 'help <action>' to learn about your life."
+        else:
+            print g.actions[textinput.split()[1]].description
     
     def __action_exit(g,textinput,action):
         print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
         sys.exit(0)
 
-
-    #action_dict = [ "eat", "play", "love", "go", "exit", "quit" ]
     actions = {}
     action_dict = [ 
         {
@@ -274,10 +303,28 @@ def process_action(g,textinput):
             "run"           : __action_inventory
         },
         {
+            "id"            : "start",
+            "matches"       : [ "start", "turn on" ],
+            "description"   : "Start the conveyor belt.",
+            "run"           : __action_start
+        },
+        {
+            "id"            : "go",
+            "matches"       : [ "go", "go north", "n", "s", "e", "w" ],
+            "description"   : "You take stock of your possessions.",
+            "run"           : __action_go
+        },
+        {
             "id"            : "nonono",
             "matches"       : [ "rip", "eat", "kill", "sing", "love" ],
             "description"   : "All the things you can't do in this game.",
             "run"           : __action_cant
+        },
+        {
+            "id"            : "help",
+            "matches"       : [ "help", "?" ],
+            "description"   : "All the things you can't do in this game.",
+            "run"           : __action_help
         },
         {
             "id"            : "exit",
@@ -291,6 +338,8 @@ def process_action(g,textinput):
         for k, v in action.items():
             setattr(obj, k, action[k])
         actions[action['id']] = obj
+
+    g.actions = actions
     
     if textinput is not "":
         action_exists = False
@@ -308,7 +357,7 @@ def run_game(g):
         room = g.rooms[g.player.room]
         try:
             room.time_in_room += 1
-            if room.time_in_room == room.hint_length + 1:
+            if room.time_in_room == room.hint_length + 1 and not room.running:
                 print_desc(room.hint)
         except Exception as e:
             print e

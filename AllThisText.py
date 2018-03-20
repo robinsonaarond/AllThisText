@@ -24,7 +24,7 @@ class Globals():
         self.total_secrets    = 0
         self.puzzles_solved   = 0
         self.total_puzzles    = 0
-        self.sleep_interval   = 0.3
+        self.sleep_interval   = 0.2
         self.item             = spawn_items()
         self.rooms            = spawn_rooms()
 
@@ -94,6 +94,26 @@ def spawn_items():
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "It's bolted to the wall.",
+            },
+            {   
+                "id"          : "supervisor", 
+                "name"        : "ROBOT SUPERVISOR", 
+                "description" : "He's your boss.  Best be nice to him.",
+                "examined"    : "|g.item['supervisor'].description|",
+                "matches"     : [ "supervisor", "robot", "robot supervisor" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "Your |g.item['supervisor'].name| doesn't look like he wants to be taken anywhere.",
+            },
+            {   
+                "id"          : "redpill", 
+                "name"        : "RED PILL", 
+                "description" : "The pill is small, red, and clear.  Its contents look something like blood.",
+                "examined"    : "|g.item['redpill'].description|",
+                "matches"     : [ "red pill" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "",
             },
             {   
                 "id"          : "circuit", 
@@ -218,12 +238,21 @@ def get_item(textinput):
 def process_widget(g,_all=False):
     if g.item['widget'].visible:
         if not _all:
-            print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
-            g.player.credits += 8
+            if g.item['supervisor'].visible:
+                print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
+                g.item['redpill'].visible = True
+                g.player.inventory.append('redpill')
+            else:
+                print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
+                g.player.credits += 8
         else:
-            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name| and your ROBOT SUPERVISOR is right behind you!")
+            g.player.credits += 32
+
+        if g.player.credits >= 48 and not g.item['supervisor'].visible:
+            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name| and your |g.item['supervisor'].name| is right behind you!")
             g.item['slots'].visible = True
             g.item['switch'].visible = True
+            g.item['supervisor'].visible = True
     else:
         print_desc("You can't see any widgets.")
 
@@ -304,7 +333,7 @@ def process_action(g,textinput):
             print "Nothing"
         else:
             for item in g.player.inventory:
-                print "  ", item
+                print "  ", g.item[item].name
     
     def __action_start(g,textinput,action):
         if len(textinput.split()) > 1:

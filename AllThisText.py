@@ -41,6 +41,7 @@ class Player():
     def __init__(self):
         self.name             = ""
         self.room             = "factory"
+        self.credits          = 0
         self.inventory        = []
 
 class Item():
@@ -66,12 +67,22 @@ def spawn_items():
                 "taketext"    : ", and put it in your pocket",
             },
             {   
+                "id"          : "credit", 
+                "name"        : "CREDITS", 
+                "description" : "These will make all the difference back at your pod.",
+                "examined"    : "|g.item['credit'].name| are digital.  You can't examine them.",
+                "matches"     : [ "credit", "credits" ],
+                "takeable"    : False,
+                "taketext"    : "|g.item['credit'].name| are digital.  You can't 'take' them.",
+            },
+            {   
                 "id"          : "widget", 
                 "name"        : "WIDGET",
                 "description" : "You see nothing special about |g.item['widget'].name|.  It is a widget.",
                 "examined"    : "It is a standard widget, ready for processing.",
                 "matches"     : [ "widget" ],
                 "takeable"    : False,
+                "visible"     : False,
                 "taketext"    : "You can't take the |g.item['widget'].name|.",
             },
             {
@@ -169,8 +180,21 @@ def get_item(textinput):
         if textinput in match:
             item = g.item[item_id]
             break
-    return item
+    if g.item[item_id].visible:
+        return item
+    else:
+        print "You don't see any %s here." % textinput
+        return None
 
+def process_widget(g,_all=False):
+    if g.item['widget'].visible:
+        if not _all:
+            print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
+            g.player.credits += 8
+        else:
+            print "Processing all widgets."
+    else:
+        print_desc("You can't see any widgets.")
 
 def process_action(g,textinput):
     # Actions. Look/Inspect/Go/Take/Eat
@@ -185,6 +209,8 @@ def process_action(g,textinput):
             break
         try:
             item = get_item(textinput)
+            if not item:
+                return
         except:
             print "How can you take '%s'?  I don't know what it is." % textinput
             return
@@ -204,6 +230,8 @@ def process_action(g,textinput):
             itemname = " ".join(text[1:])
             try:
                 item = g.item[itemname]
+                if not item:
+                    return
             except:
                 print "I'm not sure what '%s' even is, let alone know how to drop it." % itemname
                 return
@@ -252,6 +280,7 @@ def process_action(g,textinput):
             if g.player.room == "factory":
                 print_desc("<p>.\n<p><p>..\n<p><p>...\n<p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.\n The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
                 g.rooms[g.player.room].items.append('widget')
+                g.item['widget'].visible = True
                 g.rooms[g.player.room].running = True
             else:
                 print "There's nothing here to start."
@@ -259,10 +288,32 @@ def process_action(g,textinput):
             print choice(["What do you want me to start?","You want to start something?"])
     
     def __action_go(g,textinput,action):
-        print "There are people at conveyor belts as far as the eye can see."
+        # We actually only want exact matches for this action
+        if textinput in action.matches:
+            print "There are people at conveyor belts as far as the eye can see."
+        else:
+            print "I don't understand '%s.'" % textinput
     
     def __action_cant(g,textinput,action):
         print "You can't do that right now."
+    
+    def __action_quit(g,textinput,action):
+        print "You can't quit now!  You haven't processed enough widgets yet!"
+    
+    def __action_process(g,textinput,action):
+        if len(textinput.split()) <= 1:
+            print "What do you want to process?"
+        else:
+            obj = " ".join(textinput.split()[1:])
+            if obj == "widget":
+                process_widget(g)
+            elif obj == "all widgets":
+                process_widget(g,_all=True)
+            else:
+                print "I don't know how to process that."
+    
+    def __action_boring(g,textinput,action):
+        print "I know, right?"
     
     def __action_help(g,textinput,action):
         if len(textinput.split()) == 1:
@@ -305,6 +356,24 @@ def process_action(g,textinput):
             "matches"       : [ "start", "turn on" ],
             "description"   : "Start the conveyor belt.",
             "run"           : __action_start
+        },
+        {
+            "id"            : "process",
+            "matches"       : [ "process" ],
+            "description"   : "Work is work is work.",
+            "run"           : __action_process
+        },
+        {
+            "id"            : "boring",
+            "matches"       : [ "boring" ],
+            "description"   : "Work is work is work.",
+            "run"           : __action_boring
+        },
+        {
+            "id"            : "quit",
+            "matches"       : [ "quit" ],
+            "description"   : "Try to leave the game, the wrong way.",
+            "run"           : __action_quit
         },
         {
             "id"            : "go",

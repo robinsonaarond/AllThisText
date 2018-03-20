@@ -76,6 +76,35 @@ def spawn_items():
                 "taketext"    : "|g.item['credit'].name| are digital.  You can't 'take' them.",
             },
             {   
+                "id"          : "slots", 
+                "name"        : "SLOTS", 
+                "description" : "There are slots next to a swith.  They look like they could hold something.",
+                "examined"    : "They might hold |g.item['circuit'].name| if you cram them in hard enough.",
+                "matches"     : [ "slot", "slots" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "How would you take them?  They're part of the wall.",
+            },
+            {   
+                "id"          : "switch", 
+                "name"        : "SWITCH", 
+                "description" : "The switch is on the wall next to some |g.item['slots'].name|.",
+                "examined"    : "It's an ordinary switch.",
+                "matches"     : [ "switch" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "It's bolted to the wall.",
+            },
+            {   
+                "id"          : "circuit", 
+                "name"        : "CIRCUIT BOARDS", 
+                "description" : "They're circuit boards.  They look like they go in something.",
+                "examined"    : "You examine them but you really don't know much about electronics.",
+                "matches"     : [ "circuit", "circuits", "circuit boards" ],
+                "takeable"    : False,
+                "taketext"    : "How would you take them?  They're part of the wall.",
+            },
+            {   
                 "id"          : "widget", 
                 "name"        : "WIDGET",
                 "description" : "You see nothing special about |g.item['widget'].name|.  It is a widget.",
@@ -192,7 +221,9 @@ def process_widget(g,_all=False):
             print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
             g.player.credits += 8
         else:
-            print "Processing all widgets."
+            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name| and your ROBOT SUPERVISOR is right behind you!")
+            g.item['slots'].visible = True
+            g.item['switch'].visible = True
     else:
         print_desc("You can't see any widgets.")
 

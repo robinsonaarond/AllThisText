@@ -128,7 +128,7 @@ def spawn_items():
             {   
                 "id"          : "widget", 
                 "name"        : "WIDGET",
-                "description" : "You see nothing special about |g.item['widget'].name|.  It is a widget.",
+                "description" : "You see nothing special about the |g.item['widget'].name|.  It is a widget.",
                 "examined"    : "It is a standard widget, ready for processing.",
                 "matches"     : [ "widget" ],
                 "takeable"    : False,
@@ -218,6 +218,9 @@ def reset_game(g):
     g.player.inventory = [ 'picture' ]
     enter_room(g)
 
+def all_this_time(g):
+    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.<p><p><p>\n\nAll we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time\n")
+
 def get_item(textinput):
     # Generate list of matchable items and their corresponding id
     available_items = []
@@ -244,17 +247,19 @@ def process_widget(g,_all=False):
                 print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
                 g.item['redpill'].visible = True
                 g.player.inventory.append('redpill')
+                g.rooms['factory'].shortdesc = "You idly look at stuff.  There it is.  Bunch of stuff."
             else:
                 print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
                 g.player.credits += 8
         else:
             if g.item['supervisor'].visible:
-                print_desc("You mindlessly process |g.item['widget'].name|.  Your |g.item['supervisor'].name| sighs.  \"Good job buddy.  You're really earning some credits I guess.\"")
+                print_desc("You mindlessly process |g.item['widget'].name|S.  Your |g.item['supervisor'].name| sighs.  \"Good job buddy.  You're really earning some credits I guess.\"")
                 g.item['supervisor'].sadness = True
+                g.item['supervisor'].description = "Your |g.item['supervisor'].description| looks miserable.  He stares bleakly into the middle distance."
             g.player.credits += 64
 
         if g.player.credits >= 48 and not g.item['supervisor'].visible:
-            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name| and your |g.item['supervisor'].name| is right behind you!")
+            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name|S and your |g.item['supervisor'].name| is right behind you!")
             g.item['slots'].visible = True
             g.item['switch'].visible = True
             g.item['supervisor'].visible = True
@@ -365,6 +370,13 @@ def process_action(g,textinput):
     def __action_quit(g,textinput,action):
         print "You can't quit now!  You haven't processed enough widgets yet!"
     
+    def __action_show(g,textinput,action):
+        text = " ".join(textinput.split()[1:])
+        # Match robot picture action
+        #if any(x in text for x in actions[action].matches) and any(x in text for x in:
+        if any(x in text for x in g.item['supervisor'].matches) and any(x in text for x in g.item['picture'].matches):
+            all_this_time(g)
+    
     def __action_eat(g,textinput,action):
         item = get_item(' '.join(textinput.split()[1:]))
         if item:
@@ -373,7 +385,7 @@ def process_action(g,textinput):
                 print_desc("<p><p>\n<p><p>\n<p><p>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p>\n\n***** YOU HAVE DIED *****\n\n\n")
                 __action_exit(g,"death","eat")
             elif item.id == "redpill":
-                print_desc("You eat the |g.item['redpill'].name|.  Now you're energized!  Let's process some |g.item['widget'].name|!")
+                print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!")
             else:
                 print "Nothing happens."
     
@@ -416,7 +428,10 @@ def process_action(g,textinput):
         if len(textinput.split()) == 1:
             print "Type 'help <action>' to learn about your life."
         else:
-            print g.actions[textinput.split()[1]].description
+            try:
+                print g.actions[textinput.split()[1]].description
+            except:
+                print "You can't do that right now."
     
     def __action_exit(g,textinput,action):
         print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
@@ -483,6 +498,12 @@ def process_action(g,textinput):
             "matches"       : [ "quit" ],
             "description"   : "Try to leave the game, the wrong way.",
             "run"           : __action_quit
+        },
+        {
+            "id"            : "show",
+            "matches"       : [ "show" ],
+            "description"   : "For showing things.",
+            "run"           : __action_show
         },
         {
             "id"            : "go",

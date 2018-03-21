@@ -103,6 +103,7 @@ def spawn_items():
                 "matches"     : [ "supervisor", "robot", "robot supervisor" ],
                 "takeable"    : False,
                 "visible"     : False,
+                "sadness"     : False,
                 "taketext"    : "Your |g.item['supervisor'].name| doesn't look like he wants to be taken anywhere.",
             },
             {   
@@ -239,6 +240,7 @@ def process_widget(g,_all=False):
     if g.item['widget'].visible:
         if not _all:
             if g.item['supervisor'].visible and not "redpill" in g.player.inventory:
+                g.player.credits += 8
                 print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
                 g.item['redpill'].visible = True
                 g.player.inventory.append('redpill')
@@ -246,7 +248,10 @@ def process_widget(g,_all=False):
                 print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
                 g.player.credits += 8
         else:
-            g.player.credits += 32
+            if g.item['supervisor'].visible:
+                print_desc("You mindlessly process |g.item['widget'].name|.  Your |g.item['supervisor'].name| sighs.  \"Good job buddy.  You're really earning some credits I guess.\"")
+                g.item['supervisor'].sadness = True
+            g.player.credits += 64
 
         if g.player.credits >= 48 and not g.item['supervisor'].visible:
             print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name| and your |g.item['supervisor'].name| is right behind you!")
@@ -372,6 +377,26 @@ def process_action(g,textinput):
             else:
                 print "Nothing happens."
     
+    def __action_count(g,textinput,action):
+        item = get_item(' '.join(textinput.split()[1:]))
+        if item:
+            if item.id == "credit":
+                credit_count = g.player.credits
+                if credit_count < 32:
+                    print 'Only %d credits so far.  You need to process more credits!' % credit_count
+                elif 32 <= credit_count < 64:
+                    print '%d credits!  Not bad.  Almost enough to entertain your goldfish, maybe.' % credit_count
+                elif 64 <= credit_count < 128:
+                    print "That's more like it!  With %s credits you can totally watch Bozo's Lament on your screen later." % credit_count
+                elif 128 <= credit_count < 200:
+                    print "You have %d credits!  You're going to watch the HECK out of an entertainment when you return to your pod's domicile tonight!" % credit_count
+                elif 200 <= credit_count < 400:
+                    print "Whoa, you have %d credits.  That's a lot of credits." % credit_count
+                elif credit_count >= 400:
+                    print "Alright, %d credits?  That's a stupid amount of credits." % credit_count
+            else:
+                print "I don't know how to count a", item.name, "."
+
     def __action_process(g,textinput,action):
         if len(textinput.split()) <= 1:
             print "What do you want to process?"
@@ -430,6 +455,12 @@ def process_action(g,textinput):
             "run"           : __action_start
         },
         {
+            "id"            : "count",
+            "matches"       : [ "count" ],
+            "description"   : "Useful in primitive cultures as well as advanced ones.",
+            "run"           : __action_count
+        },
+        {
             "id"            : "process",
             "matches"       : [ "process" ],
             "description"   : "Work is work is work.",
@@ -456,7 +487,7 @@ def process_action(g,textinput):
         {
             "id"            : "go",
             "matches"       : [ "go", "go north", "go south", "go east", "go west" ],
-            "description"   : "You take stock of your possessions.",
+            "description"   : "For going into other rooms.  YMMV.",
             "run"           : __action_go
         },
         {
@@ -468,7 +499,7 @@ def process_action(g,textinput):
         {
             "id"            : "help",
             "matches"       : [ "help", "?" ],
-            "description"   : "All the things you can't do in this game.",
+            "description"   : "Prints an action's description.",
             "run"           : __action_help
         },
         {

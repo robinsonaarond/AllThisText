@@ -486,7 +486,7 @@ def process_action(g,textinput):
         },
         {
             "id"            : "go",
-            "matches"       : [ "go", "go north", "go south", "go east", "go west" ],
+            "matches"       : [ "go", "go north", "go south", "go east", "go west", "e", "w", "s", "n" ],
             "description"   : "For going into other rooms.  YMMV.",
             "run"           : __action_go
         },
@@ -519,7 +519,7 @@ def process_action(g,textinput):
     
     if textinput is not "":
         action_exists = False
-        for action in actions.keys():
+        for action in sorted(actions.keys(), key=len, reverse=True):
             if any(textinput.startswith(x) for x in actions[action].matches):
                 actions[action].run(g,textinput,actions[action])
                 action_exists = True
@@ -541,7 +541,10 @@ def run_game(g):
         # The old games don't support awesome features like readline
         # or autocomplete, so I'm not going to do it here.
         textinput = raw_input("\n> ")
-        process_action(g, textinput.lower())
+        # Only support pidgin English. Ugh.
+        word_ignore = [ "the", "in", "to", "into", "on", "at", "a" ]
+        text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in word_ignore ])
+        process_action(g, text_sanitized)
         g.moves += 1
 
 if __name__ == "__main__":

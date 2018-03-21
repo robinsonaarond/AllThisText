@@ -110,7 +110,7 @@ def spawn_items():
                 "name"        : "RED PILL", 
                 "description" : "The pill is small, red, and clear.  Its contents look something like blood.",
                 "examined"    : "|g.item['redpill'].description|",
-                "matches"     : [ "red pill" ],
+                "matches"     : [ "red pill", "redpill", "red" ],
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "",
@@ -238,7 +238,7 @@ def get_item(textinput):
 def process_widget(g,_all=False):
     if g.item['widget'].visible:
         if not _all:
-            if g.item['supervisor'].visible:
+            if g.item['supervisor'].visible and not "redpill" in g.player.inventory:
                 print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
                 g.item['redpill'].visible = True
                 g.player.inventory.append('redpill')
@@ -360,6 +360,18 @@ def process_action(g,textinput):
     def __action_quit(g,textinput,action):
         print "You can't quit now!  You haven't processed enough widgets yet!"
     
+    def __action_eat(g,textinput,action):
+        item = get_item(' '.join(textinput.split()[1:]))
+        if item:
+            print "You eat the %s." % item.name
+            if item.id == "picture":
+                print_desc("<p><p>\n<p><p>\n<p><p>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p>\n\n***** YOU HAVE DIED *****\n\n\n")
+                __action_exit(g,"death","eat")
+            elif item.id == "redpill":
+                print_desc("You eat the |g.item['redpill'].name|.  Now you're energized!  Let's process some |g.item['widget'].name|!")
+            else:
+                print "Nothing happens."
+    
     def __action_process(g,textinput,action):
         if len(textinput.split()) <= 1:
             print "What do you want to process?"
@@ -430,6 +442,12 @@ def process_action(g,textinput):
             "run"           : __action_boring
         },
         {
+            "id"            : "eat",
+            "matches"       : [ "eat", "swallow", "devour", "chew" ],
+            "description"   : "For eating pills, because that's awesome.",
+            "run"           : __action_eat
+        },
+        {
             "id"            : "quit",
             "matches"       : [ "quit" ],
             "description"   : "Try to leave the game, the wrong way.",
@@ -437,13 +455,13 @@ def process_action(g,textinput):
         },
         {
             "id"            : "go",
-            "matches"       : [ "go", "go north", "n", "s", "e", "w" ],
+            "matches"       : [ "go", "go north", "go south", "go east", "go west" ],
             "description"   : "You take stock of your possessions.",
             "run"           : __action_go
         },
         {
             "id"            : "nonono",
-            "matches"       : [ "rip", "eat", "kill", "sing", "love" ],
+            "matches"       : [ "rip", "kill", "sing", "love" ],
             "description"   : "All the things you can't do in this game.",
             "run"           : __action_cant
         },

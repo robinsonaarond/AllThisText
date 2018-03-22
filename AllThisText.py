@@ -53,6 +53,89 @@ class Item():
         self.visible     = True
         self.takeable    = True
 
+def static_images(g,img):
+    if img == "post":
+        i = """
+
+************************************************************
+************************************************************
+
+  __   _  _    _____  _    _        _____  _
+ (  ) ( )( )  (_   _)( )  (_)      (_   _)(_)
+ /o \ ( )( )    | |  | |_  _  __     | |   _  __  __  ___
+( __ )( )( )    ( )  ( _ )( )(_      ( )  ( )( _\/_ )( o_)
+/_\/_\/_\/_\    /_\  /_\||/_\/__)    /_\  /_\/_\  /_\ \(
+
+
+************************************************************
+************************************************************
+
+
+
+All This Time
+A Text Adventure Game
+Copyright (c) 2017 Jonathan Coulton Inc., All rights reserved.
+Revision 79 / Serial number 58784
+
+
+
+"""
+        print i
+        time.sleep(5)
+        print(chr(27) + "[2J")
+    elif img == "moon":
+        i = """
+            .          .                                                    .
+    +           .           +                     *                           . 
+.                   *                   .                  .                 
+              .                                 .                    
+*                                .                                .          *
+         *                                    .                          . 
+                       .                                .
+    .                               *                           *  
++              *                         .                              .
+                                                     .                         
+           .                  .                              .               
+    *                        *                        *                  .
+            .                                     .                         
+                       .                                          .
+                 *                                                     *
+      .                                .                                     .
+ *                                 *                        *           
+                        *                             .                  
+               .                                                    .
+                                        *                                  *
+        *                          .                             .
+    *                                                 +                    
+                      +                           .                      + 
+                .                                           .          
+""" + """
+            .          .                        .....                       .
+    +           .           +               _d^^^^^^^^^b_                     . 
+.                   *                    .d''           ''b.                 
+              .                        .p'   .   .-.       'q.       
+*                                .    .d'       (   )       'b.   .          *
+         *                           .d'      o  '-'   0     'b.         . 
+                       .             ::   ()              .   ::
+    .                                ::            .          ::   
++              *                     ::  .   .--.       0     ::        .
+                                     'p.    |    |           .q'               
+           .                  .       'p.   '.__.'  ()      .q'              
+    *                        *         'b.                .d'            .
+            .                            'q..   o      ..p'                 
+                       .                    ^q........p^          .
+                 *                              ''''                   *
+      .                                .                                     .
+ *                                 *                        *           
+                        *                             .                  
+               .                                                    .
+                                        *                                  *
+        *                          .                             .
+    *                                                 +                    
+                      +                           .                      + 
+                .                                           .          
+"""
+
 # Statically generated list of all Items in the game in their initial state
 def spawn_items():
     object_list = {}
@@ -570,5 +653,6 @@ def run_game(g):
 
 if __name__ == "__main__":
     g = Globals()
+    static_images(g,"post")
     g.player = Player()
     run_game(g)

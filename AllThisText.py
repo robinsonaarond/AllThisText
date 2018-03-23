@@ -53,8 +53,20 @@ class Item():
         self.visible     = True
         self.takeable    = True
 
+class bcolors:
+    HEADER    = '\033[95m'
+    OKBLUE    = '\033[94m'
+    OKGREEN   = '\033[92m'
+    WARNING   = '\033[93m'
+    FAIL      = '\033[91m'
+    CYAN      = '\033[36m'
+    ENDC      = '\033[0m'
+    BOLD      = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 def static_images(g,img):
     if img == "post":
+        print(chr(27) + "[2J")
         i = """
 
 ************************************************************
@@ -81,7 +93,7 @@ Revision 79 / Serial number 58784
 
 """
         print i
-        time.sleep(5)
+        time.sleep(1)
         print(chr(27) + "[2J")
     elif img == "moon":
         i = """
@@ -172,8 +184,8 @@ def spawn_items():
                 "id"          : "switch", 
                 "name"        : "SWITCH", 
                 "description" : "The switch is on the wall next to some |g.item['slots'].name|.",
-                "examined"    : "It's an ordinary switch.",
-                "matches"     : [ "switch" ],
+                "examined"    : "It's an ordinary switch.  Next to it is a label that says 'DESTROY'.",
+                "matches"     : [ "switch", "destroy switch" ],
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "It's bolted to the wall.",
@@ -195,6 +207,16 @@ def spawn_items():
                 "description" : "The pill is small, red, and clear.  Its contents look something like blood.",
                 "examined"    : "|g.item['redpill'].description|",
                 "matches"     : [ "red pill", "redpill", "red" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "",
+            },
+            {   
+                "id"          : "bluepill", 
+                "name"        : "BLUE PILL", 
+                "description" : "The pill is small, blue, and milky.  Its contents look something like happiness.",
+                "examined"    : "|g.item['bluepill'].description|",
+                "matches"     : [ "blue pill", "bluepill", "blue" ],
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "",
@@ -307,6 +329,7 @@ def all_this_time(g):
 def get_item(textinput):
     # Generate list of matchable items and their corresponding id
     available_items = []
+    item = None
     for k, i in g.item.iteritems():
         for match in i.matches:
             available_items.append(match + '|' + k)
@@ -316,11 +339,14 @@ def get_item(textinput):
         if textinput in match:
             item = g.item[item_id]
             break
-    if g.item[item_id].visible:
-        return item
+    if item:
+        if item.visible:
+            return item
+        else:
+            print "You don't see any %s here." % textinput
+            return None
     else:
-        print "You don't see any %s here." % textinput
-        return None
+        return item
 
 def process_widget(g,_all=False):
     if g.item['widget'].visible:
@@ -330,7 +356,7 @@ def process_widget(g,_all=False):
                 print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
                 g.item['redpill'].visible = True
                 g.player.inventory.append('redpill')
-                g.rooms['factory'].shortdesc = "You idly look at stuff.  There it is.  Bunch of stuff."
+                g.rooms['factory'].shortdesc = "You idly look at stuff.  There it is.  Bunch of stuff.<p><p>Your |g.item['supervisor'].name| sighs again, but this time it comes out as a little moan."
             else:
                 print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
                 g.player.credits += 8
@@ -338,7 +364,7 @@ def process_widget(g,_all=False):
             if g.item['supervisor'].visible:
                 print_desc("You mindlessly process |g.item['widget'].name|S.  Your |g.item['supervisor'].name| sighs.  \"Good job buddy.  You're really earning some credits I guess.\"")
                 g.item['supervisor'].sadness = True
-                g.item['supervisor'].description = "Your |g.item['supervisor'].description| looks miserable.  He stares bleakly into the middle distance."
+                g.item['supervisor'].description = "Your |g.item['supervisor'].name| looks miserable.  He stares bleakly into the middle distance."
             g.player.credits += 64
 
         if g.player.credits >= 48 and not g.item['supervisor'].visible:
@@ -456,19 +482,33 @@ def process_action(g,textinput):
     def __action_show(g,textinput,action):
         text = " ".join(textinput.split()[1:])
         # Match robot picture action
-        #if any(x in text for x in actions[action].matches) and any(x in text for x in:
         if any(x in text for x in g.item['supervisor'].matches) and any(x in text for x in g.item['picture'].matches):
             all_this_time(g)
+            g.item['supervisor'].sadness = False
+            print_desc("Your |g.item['supervisor'].name| blows his nose.  Looking up at a security camera, he says loudly, \"Now get back to those widgets!\"  He smiles with a faraway look in his eyes and whispers to you, \"I've never seen the moon.\"<p><p>He hands you a |g.item['bluepill'].name| and winks.")
+            g.player.inventory.append('bluepill')
+            g.item['bluepill'].visible = True
     
     def __action_eat(g,textinput,action):
         item = get_item(' '.join(textinput.split()[1:]))
         if item:
             print "You eat the %s." % item.name
+            try:
+                # No matter what it is, if you ate it then it shouldn't be in your inventory anymore.
+                g.player.inventory.remove(item.id)
+            except ValueError:
+                pass
+
             if item.id == "picture":
                 print_desc("<p><p>\n<p><p>\n<p><p>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p>\n\n***** YOU HAVE DIED *****\n\n\n")
                 __action_exit(g,"death","eat")
             elif item.id == "redpill":
                 print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!")
+            elif item.id == "bluepill":
+                print bcolors.CYAN
+                print_desc("W H O A\n.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?\n<p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"\n<p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.\n<p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.\n<p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.\n<p>The effects of the |g.item['bluepill'].name| are wearing off.\n<p>...")
+                print bcolors.ENDC
+                print_desc("<p>..<p>.<p>Uh oh.")
             else:
                 print "Nothing happens."
     
@@ -491,6 +531,8 @@ def process_action(g,textinput):
                     print "Alright, %d credits?  That's a stupid amount of credits." % credit_count
             else:
                 print "I don't know how to count a", item.name, "."
+        else:
+            print "I don't know how to count that."
 
     def __action_process(g,textinput,action):
         if len(textinput.split()) <= 1:

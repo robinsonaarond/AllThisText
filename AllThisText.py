@@ -15,6 +15,7 @@ import time
 import sys
 from random import choice
 from random import randint
+from textwrap import wrap
 
 class Globals():
     def __init__(self): 
@@ -25,7 +26,7 @@ class Globals():
         self.total_secrets    = 0
         self.puzzles_solved   = 0
         self.total_puzzles    = 0
-        self.sleep_interval   = 0.2
+        self.sleep_interval   = 1.0
         self.item             = spawn_items()
         self.rooms            = spawn_rooms()
 
@@ -212,6 +213,7 @@ def spawn_items():
                 "takeable"    : False,
                 "visible"     : False,
                 "sadness"     : False,
+                "gaveredpill" : False,
                 "taketext"    : "Your |g.item['supervisor'].name| doesn't look like he wants to be taken anywhere.",
             },
             {   
@@ -343,9 +345,11 @@ def print_desc(room_desc, output=True):
         if "<p>" in desc:
             for line in desc.split("<p>"):
                 if line:
+                    #print '\n'.join(wrap(line))
                     print line
                     time.sleep(g.sleep_interval)
         else:
+            #print '\n'.join(wrap(desc))
             print desc
     else:
         return desc
@@ -388,15 +392,17 @@ def get_item(textinput):
             print "You don't see any %s here." % textinput
             return None
     else:
+        print "You don't see any %s here." % textinput
         return item
 
 def process_widget(g,_all=False):
     if g.item['widget'].visible:
         if not _all:
-            if g.item['supervisor'].visible and not "redpill" in g.player.inventory:
+            if g.item['supervisor'].visible and not "redpill" in g.player.inventory and g.item['supervisor'].gaveredpill == False:
                 g.player.credits += 8
                 print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
                 g.item['redpill'].visible = True
+                g.item['supervisor'].gaveredpill = True
                 g.player.inventory.append('redpill')
                 g.rooms['factory'].shortdesc = "You idly look at stuff.  There it is.  Bunch of stuff.<p><p>Your |g.item['supervisor'].name| sighs again, but this time it comes out as a little moan."
             else:
@@ -531,15 +537,12 @@ def process_action(g,textinput):
         if len(textinput.split()) >= 2:
             action = textinput.split()[0]
             item_name = textinput.replace(action, "", 1).strip()
-            try:
-                item = get_item(item_name)
-            except:
-                print "You don't see any '%s' here." % textinput
-                return
-            if action == "examine" and hasattr(item, 'examined'):
-                print_desc(item.examined)
-            else:
-                print "You look at the %s.  %s" % (item.name, print_desc(item.description, output=False))
+            item = get_item(item_name)
+            if item:
+                if action == "examine" and hasattr(item, 'examined'):
+                    print_desc(item.examined)
+                else:
+                    print "You look at the %s.  %s" % (item.name, print_desc(item.description, output=False))
         # If no argument, it must be the room.  Use the short description
         else:
             room = g.rooms[g.player.room]

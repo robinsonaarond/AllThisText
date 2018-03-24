@@ -344,13 +344,12 @@ def print_desc(room_desc, output=True):
         # Parse <p> markup for pauses, <n> for newlines
         if "<p>" in desc:
             for line in desc.split("<p>"):
+                time.sleep(g.sleep_interval)
                 if line:
                     for l in line.replace('<n>', '\n').split('\n'):
                         print '\n'.join(wrap(l))
-                        time.sleep(g.sleep_interval)
         else:
-            #print '\n'.join(wrap(desc))
-            print desc.replace('<n>', '\n')
+            print '\n'.join(wrap(desc.replace('<n>', '\n')))
     else:
         return desc
 
@@ -389,10 +388,10 @@ def get_item(textinput):
         if item.visible:
             return item
         else:
-            print "You don't see any %s here." % textinput
+            print_desc("You don't see any %s here." % textinput)
             return None
     else:
-        print "You don't see any %s here." % textinput
+        print_desc("You don't see any %s here." % textinput)
         return item
 
 def process_widget(g,_all=False):
@@ -606,7 +605,7 @@ def process_action(g,textinput):
                 pass
 
             if item.id == "picture":
-                print_desc("<p><p><n><p><p><n><p><p>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><n><n>***** YOU HAVE DIED *****<n><n><n>")
+                print_desc("<p><p>.<n><p><p>..<n><p><n>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><p><p><n><n>***** YOU HAVE DIED *****<n><n>")
                 __action_exit(g,"death","eat")
             elif item.id == "redpill":
                 print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!")

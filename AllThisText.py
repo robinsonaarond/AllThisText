@@ -148,6 +148,9 @@ Revision 79 / Serial number 58784
                 .                                           .          
 """
 
+def animate_stars():
+    pass
+
 # Statically generated list of all Items in the game in their initial state
 def spawn_items():
     object_list = {}
@@ -229,6 +232,35 @@ def spawn_items():
                 "matches"     : [ "circuit", "circuits", "circuit boards" ],
                 "takeable"    : False,
                 "taketext"    : "How would you take them?  They're part of the wall.",
+            },
+            {   
+                "id"          : "feelings", 
+                "name"        : "FEELINGS", 
+                "description" : "It's a circuit board.  It is labeled FEELINGS.",
+                "examined"    : "You examine them but you really don't know much about FEELINGS.",
+                "matches"     : [ "feelings", "feelings circuit board", "feels" ],
+                "visible"     : False,
+                "taketext"    : "  I mean, he's a robot right?  They're probably not even real feelings.",
+            },
+            {   
+                "id"          : "senseofself", 
+                "name"        : "SENSE OF SELF", 
+                "description" : "It's a circuit board.  It is labeled SENSE OF SELF.",
+                "examined"    : "You examine them but you really don't know much about FEELINGS.",
+                "matches"     : [ "sense of self" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "The |g.item['senseofself'].name| is blocked by the |g.item['feelings'].name|.  You'll have to take that one first.",
+            },
+            {   
+                "id"          : "willtolive", 
+                "name"        : "WILL TO LIVE", 
+                "description" : "It's a circuit board.  It is labeled WILL TO LIVE.",
+                "examined"    : "You think about your own WILL TO LIVE.  Is is pre-programmed in like this?",
+                "matches"     : [ "will to live" ],
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "The |g.item['willtolive'].name| is blocked by the |g.item['senseofself'].name|.  You'll have to take that one first.",
             },
             {   
                 "id"          : "widget", 
@@ -375,6 +407,60 @@ def process_widget(g,_all=False):
     else:
         print_desc("You can't see any widgets.")
 
+def end_game(g):
+    print_desc("<p>\nYour |g.item['supervisor'].name| winces.  Wait, do they feel pain?")
+    the_end_is_near = False
+    end_turn_count = 0
+    while True:
+        textinput = raw_input("\n>")
+        text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
+        if not the_end_is_near:
+            if textinput == "" and all(x in g.player.inventory for x in ['feelings','senseofself']):
+                print "COME ON.  DO IT."
+            elif text_sanitized == "":
+                pass
+            elif text_sanitized == "take sense of self":
+                print_desc("Sure, why not?  You take, and you take, and you take.  Because you're a winner.")
+                g.item['willtolive'].takeable = True
+                g.player.inventory.append("senseofself")
+            elif text_sanitized in ["take will to live","take will  live","take will","take will live"] and "willtolive" not in g.player.inventory and g.item['willtolive'].takeable == True:
+                print_desc("Wow.  OK, but this may kill your |g.item['supervisor'].name|.  Are you sure? (y/n)")
+                g.player.inventory.append("willtolive")
+            elif "willtolive" in g.player.inventory and text_sanitized in [ "y", "n" ]:
+                if text_sanitized == "y":
+                    print_desc("You take your |g.item['willtolive'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
+                elif text_sanitized == "n":
+                    print_desc("Too bad.  Some decisions are hard.  You take your |g.item['willtolive'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
+                print_desc("<p>\nHe won't last long now.")
+                the_end_is_near = True
+            else:
+                print "I care about \"%s\".  You know what you need to do." % textinput
+        else:
+            end_turn_count += 1
+            if text_sanitized.startswith("put feelings"):
+                print "You can't put FEELINGS there."
+            elif text_sanitized.startswith("get feelings"):
+                print "You already have FEELINGS."
+            elif text_sanitized.startswith("circuit boards"):
+                print_desc("What do you want to do with the |g.item['circuit'].name|?")
+            elif text_sanitized.startswith("put c"):
+                print "I don't understand \"%s\"" % textinput
+            elif text_sanitized == "what":
+                print "What?"
+
+            if end_turn_count == 2:
+                print_desc("<p>\nYour |g.item['supervisor'].name| coughs.  His eyes are vacant, glassy.")
+            elif end_turn_count == 6:
+                print_desc("OK buddy, you sound really frustrated.  Slow it down.")
+            elif end_turn_count == 8:
+                print_desc("<p>\nYour |g.item['supervisor'].name|'s legs fail.  He crumples to the floor and looks up with sad resignation.  \"That's OK buddy, you tried,\" he says.")
+            elif end_turn_count == 9:
+                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.\n<p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><p><p>\nA hiss of depressurization, and you feel the kiss of cold air from outside.<p>\nYour |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p>\nAs the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p>\nThere is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
+                static_images(g,"moon")
+                animate_stars()
+                process_action(g, "exit")
+            
+
 def process_action(g,textinput):
     # Actions. Look/Inspect/Go/Take/Eat
     # Action list
@@ -398,6 +484,11 @@ def process_action(g,textinput):
             if item.takeable:
                 print "You take the %s%s." % (item.name,print_desc(item.taketext, output=False))
                 g.player.inventory.append(item.id)
+                if item.id == "feelings":
+                    g.item['senseofself'].takeable = True
+                if item.id == "senseofself":
+                    g.item['willtolive'].takeable = True
+                    end_game(g)
             else:
                 print_desc(item.taketext)
         else:
@@ -509,6 +600,9 @@ def process_action(g,textinput):
                 print_desc("W H O A\n.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?\n<p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"\n<p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.\n<p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.\n<p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.\n<p>The effects of the |g.item['bluepill'].name| are wearing off.\n<p>...")
                 print bcolors.ENDC
                 print_desc("<p>..<p>.<p>Uh oh.")
+                g.item['feelings'].visible = True
+                g.item['senseofself'].visible = True
+                g.item['willtolive'].visible = True
             else:
                 print "Nothing happens."
     
@@ -686,10 +780,8 @@ def run_game(g):
             pass
         # The old games don't support awesome features like readline
         # or autocomplete, so I'm not going to do it here.
-        textinput = raw_input("\n> ")
-        # Only support pidgin English. Ugh.
-        word_ignore = [ "the", "in", "to", "into", "on", "at", "a" ]
-        text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in word_ignore ])
+        textinput = raw_input("\n>")
+        text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
         process_action(g, text_sanitized)
         g.moves += 1
 
@@ -697,4 +789,10 @@ if __name__ == "__main__":
     g = Globals()
     static_images(g,"post")
     g.player = Player()
+    # Only support pidgin English. Aooga.
+    g.word_ignore = [ "the", "in", "to", "into", "on", "at", "a" ]
+    #g.player.inventory.append("feelings")
+    #g.player.inventory.append("senseofself")
+    #g.item['willtolive'].takeable = True
+    #end_game(g)
     run_game(g)

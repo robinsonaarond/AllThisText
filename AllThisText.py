@@ -306,10 +306,10 @@ def spawn_rooms():
             {
                 "id"          : "factory",
                 "name"        : "Factory Floor",
-                "description" : "You are in a factory.\n\nIt's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.\n\nIn front of you is a short |g.item['belt'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p>\n\nIn your hand is a |g.item['picture'].name|.",
+                "description" : "You are in a factory.<n><n>It's an enormous room.  If there are walls, they're too far away for you to make out.  You assume there is a ceiling somewhere above you, but when you look up, you see only an impenetrable darkness.<n><n>In front of you is a short |g.item['belt'].name| that stretches between two columns.  There are other people standing at similar conveyor belts all around you, in all directions, as far as the eye can see.<p><p><n><n>In your hand is a |g.item['picture'].name|.",
                 "shortdesc"   : "You are on the factory floor.  It's an enormous room.  You see a |g.item['belt'].name| in front of you.",
                 "exits"       : { "n": None, "s": None, "e": "boiler", "w": None },
-                "hint"        : "\n<p><p>(There is a conveyor belt though.  It is stopped.)",
+                "hint"        : "<n><p><p>(There is a conveyor belt though.  It is stopped.)",
                 "hint_length" : 6,
                 "running"     : False,
                 "items"       : [],
@@ -341,16 +341,16 @@ def print_desc(room_desc, output=True):
     else:
         desc = room_desc
     if output:
-        # Parse <p> markup for pauses
+        # Parse <p> markup for pauses, <n> for newlines
         if "<p>" in desc:
             for line in desc.split("<p>"):
                 if line:
-                    #print '\n'.join(wrap(line))
-                    print line
-                    time.sleep(g.sleep_interval)
+                    for l in line.replace('<n>', '\n').split('\n'):
+                        print '\n'.join(wrap(l))
+                        time.sleep(g.sleep_interval)
         else:
             #print '\n'.join(wrap(desc))
-            print desc
+            print desc.replace('<n>', '\n')
     else:
         return desc
 
@@ -370,7 +370,7 @@ def reset_game(g):
     enter_room(g)
 
 def all_this_time(g):
-    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.<p><p><p>\n\nAll we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time\n")
+    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.<p><p><p><n><n>All we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time<n>")
 
 def get_item(textinput):
     # Generate list of matchable items and their corresponding id
@@ -416,7 +416,7 @@ def process_widget(g,_all=False):
             g.player.credits += 64
 
         if g.player.credits >= 48 and not g.item['supervisor'].visible:
-            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.\n<p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.\n<p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.\n<p><p><p><p>Oh No! You stopped processing |g.item['widget'].name|S and your |g.item['supervisor'].name| is right behind you!")
+            print_desc("You mindlessly process widgets.  Your thoughts begin to wander.<n><p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.<n><p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.<n><p><p><p><p>Oh No! You stopped processing |g.item['widget'].name|S and your |g.item['supervisor'].name| is right behind you!")
             g.item['slots'].visible = True
             g.item['switch'].visible = True
             g.item['supervisor'].visible = True
@@ -424,7 +424,7 @@ def process_widget(g,_all=False):
         print_desc("You can't see any widgets.")
 
 def end_game(g):
-    print_desc("<p>\nYour |g.item['supervisor'].name| winces.  Wait, do they feel pain?")
+    print_desc("<p><n>Your |g.item['supervisor'].name| winces.  Wait, do they feel pain?")
     the_end_is_near = False
     end_turn_count = 0
 
@@ -449,7 +449,7 @@ def end_game(g):
                     print_desc("You take your |g.item['willtolive'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
                 elif text_sanitized == "n":
                     print_desc("Too bad.  Some decisions are hard.  You take your |g.item['willtolive'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
-                print_desc("<p>\nHe won't last long now.")
+                print_desc("<p><n>He won't last long now.")
                 the_end_is_near = True
             else:
                 print "I care about \"%s\".  You know what you need to do." % textinput
@@ -467,13 +467,13 @@ def end_game(g):
                 print "What?"
 
             if end_turn_count == 2:
-                print_desc("<p>\nYour |g.item['supervisor'].name| coughs.  His eyes are vacant, glassy.")
+                print_desc("<p><n>Your |g.item['supervisor'].name| coughs.  His eyes are vacant, glassy.")
             elif end_turn_count == 6:
                 print_desc("OK buddy, you sound really frustrated.  Slow it down.")
             elif end_turn_count == 8:
-                print_desc("<p>\nYour |g.item['supervisor'].name|'s legs fail.  He crumples to the floor and looks up with sad resignation.  \"That's OK buddy, you tried,\" he says.")
+                print_desc("<p><n>Your |g.item['supervisor'].name|'s legs fail.  He crumples to the floor and looks up with sad resignation.  \"That's OK buddy, you tried,\" he says.")
             elif end_turn_count == 9:
-                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.\n<p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><p><p>\nA hiss of depressurization, and you feel the kiss of cold air from outside.<p>\nYour |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p>\nAs the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p>\nThere is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
+                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.<n><p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><p><p><n>A hiss of depressurization, and you feel the kiss of cold air from outside.<p><n>Your |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p><n>As the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p><n>There is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
                 static_images(g,"moon")
                 animate_stars()
                 process_action(g, "exit")
@@ -563,7 +563,7 @@ def process_action(g,textinput):
     def __action_start(g,textinput,action):
         if len(textinput.split()) > 1:
             if g.player.room == "factory":
-                print_desc("<p>.\n<p><p>..\n<p><p>...\n<p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.\n The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
+                print_desc("<p>.<n><p><p>..<n><p><p>...<n><p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.<n> The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
                 g.rooms[g.player.room].items.append('widget')
                 g.item['widget'].visible = True
                 g.rooms[g.player.room].running = True
@@ -606,13 +606,13 @@ def process_action(g,textinput):
                 pass
 
             if item.id == "picture":
-                print_desc("<p><p>\n<p><p>\n<p><p>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p>\n\n***** YOU HAVE DIED *****\n\n\n")
+                print_desc("<p><p><n><p><p><n><p><p>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><n><n>***** YOU HAVE DIED *****<n><n><n>")
                 __action_exit(g,"death","eat")
             elif item.id == "redpill":
                 print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!")
             elif item.id == "bluepill":
                 print bcolors.CYAN
-                print_desc("W H O A\n.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?\n<p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"\n<p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.\n<p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.\n<p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.\n<p>The effects of the |g.item['bluepill'].name| are wearing off.\n<p>...")
+                print_desc("W H O A<n>.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?<n><p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"<n><p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.<n><p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.<n><p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.<n><p>The effects of the |g.item['bluepill'].name| are wearing off.<n><p>...")
                 print bcolors.ENDC
                 print_desc("<p>..<p>.<p>Uh oh.")
                 g.item['feelings'].visible = True

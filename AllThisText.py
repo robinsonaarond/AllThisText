@@ -14,6 +14,7 @@
 import time
 import sys
 from random import choice
+from random import randint
 
 class Globals():
     def __init__(self): 
@@ -69,6 +70,7 @@ def static_images(g,img):
         print(chr(27) + "[2J")
         i = """
 
+
 ************************************************************
 ************************************************************
 
@@ -88,7 +90,6 @@ All This Time
 A Text Adventure Game
 Copyright (c) 2017 Jonathan Coulton Inc., All rights reserved.
 Revision 79 / Serial number 58784
-
 
 
 """
@@ -122,6 +123,7 @@ Revision 79 / Serial number 58784
                       +                           .                      + 
                 .                                           .          
 """ + """
+                             .                                            
             .          .                        .....                       .
     +           .           +               _d^^^^^^^^^b_                     . 
 .                   *                    .d''           ''b.                 
@@ -144,19 +146,20 @@ Revision 79 / Serial number 58784
                                         *                                  *
         *                          .                             .
     *                                                 +                    
-                      +                           .                      + 
-                .                                           .          
-"""
+                .                                           .          """
         for line in i.splitlines():
             time.sleep(0.1)
             print line
 
 def animate_stars():
-    stars = [ "*", "+", "." ]
-    for i in range(1,10):
-        sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (x, y, choice(stars)))
-        sys.stdout.flush()
-        time.sleep(0.4)
+    stars = [ "+", "*", "*", ".", ".", ".", "." ]
+    for i in range(1,80):
+        x = randint(1,80)
+        y = randint(1,24)
+        if (x < 37 and x > 65) or y > 14: 
+            sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (y, x, choice(stars)))
+            sys.stdout.flush()
+            time.sleep(0.3)
 
 # Statically generated list of all Items in the game in their initial state
 def spawn_items():
@@ -795,8 +798,6 @@ def run_game(g):
         g.moves += 1
 
 if __name__ == "__main__":
-    animate_stars()
-    sys.exit(0)
     g = Globals()
     static_images(g,"post")
     g.player = Player()

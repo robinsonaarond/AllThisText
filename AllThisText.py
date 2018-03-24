@@ -147,9 +147,16 @@ Revision 79 / Serial number 58784
                       +                           .                      + 
                 .                                           .          
 """
+        for line in i.splitlines():
+            time.sleep(0.1)
+            print line
 
 def animate_stars():
-    pass
+    stars = [ "*", "+", "." ]
+    for i in range(1,10):
+        sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (x, y, choice(stars)))
+        sys.stdout.flush()
+        time.sleep(0.4)
 
 # Statically generated list of all Items in the game in their initial state
 def spawn_items():
@@ -411,6 +418,8 @@ def end_game(g):
     print_desc("<p>\nYour |g.item['supervisor'].name| winces.  Wait, do they feel pain?")
     the_end_is_near = False
     end_turn_count = 0
+
+    # Note: https://xkcd.com/1378/ about this wall of conditionals
     while True:
         textinput = raw_input("\n>")
         text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
@@ -786,13 +795,11 @@ def run_game(g):
         g.moves += 1
 
 if __name__ == "__main__":
+    animate_stars()
+    sys.exit(0)
     g = Globals()
     static_images(g,"post")
     g.player = Player()
     # Only support pidgin English. Aooga.
     g.word_ignore = [ "the", "in", "to", "into", "on", "at", "a" ]
-    #g.player.inventory.append("feelings")
-    #g.player.inventory.append("senseofself")
-    #g.item['willtolive'].takeable = True
-    #end_game(g)
     run_game(g)

@@ -19,8 +19,27 @@ from textwrap import wrap
 
 class Globals():
     def __init__(self): 
+        class Points():
+            def count_points(self):
+                total = 0
+                for key, point in self.__dict__.iteritems():
+                    if point.done:
+                        total += point.points
+                return total
+            def __init__(self):
+                class p():
+                    done = False
+                    points = 1
+                self.start_belt = p()
+                self.eat_red_pill = p()
+                self.credits_peon = p()
+                self.credits_banker = p()
+                self.credits_banker.points = 4
+                self.credits_maniac = p()
+                self.credits_maniac.points = 5
+
         self.moves            = 0
-        self.points           = 0
+        self.points           = Points()
         self.points_total     = 50
         self.secrets_found    = 0
         self.total_secrets    = 0
@@ -369,7 +388,7 @@ def reset_game(g):
     enter_room(g)
 
 def all_this_time(g):
-    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.<p><p><p><n><n>All we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time<n>")
+    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.  You feel the song of the |g.item['belt'].name| opening in your mind like the bloom of a... flower?  Whatever that is.  His words merge with the song.<p><p><p><n><n>All we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time<n>")
 
 def get_item(textinput):
     # Generate list of matchable items and their corresponding id
@@ -419,6 +438,13 @@ def process_widget(g,_all=False):
             g.item['slots'].visible = True
             g.item['switch'].visible = True
             g.item['supervisor'].visible = True
+        
+        if g.player.credits > 1000:
+            g.points.credits_maniac.done = True
+        if g.player.credits > 300:
+            g.points.credits_banker.done = True
+        elif g.player.credits >= 8:
+            g.points.credits_peon.done = True
     else:
         print_desc("You can't see any widgets.")
 
@@ -472,9 +498,10 @@ def end_game(g):
             elif end_turn_count == 8:
                 print_desc("<p><n>Your |g.item['supervisor'].name|'s legs fail.  He crumples to the floor and looks up with sad resignation.  \"That's OK buddy, you tried,\" he says.")
             elif end_turn_count == 9:
-                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.<n><p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><p><p><n>A hiss of depressurization, and you feel the kiss of cold air from outside.<p><n>Your |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p><n>As the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p><n>There is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
+                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.<n><p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><n>The |g.item['belt'].name| in front of you shuts down suddenly, but the song in your mind is louder than ever.<p><p><n>A hiss of depressurization, and you feel the kiss of cold air from outside.<p><n>Your |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p><n>As the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p><n>There is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
                 static_images(g,"moon")
                 animate_stars()
+                print_desc("As the song dies away, and you gaze at the moon in the sky, you realize you've reached...<p><p><n><n>THE END<n><p>")
                 process_action(g, "exit")
             
 
@@ -563,6 +590,7 @@ def process_action(g,textinput):
         if len(textinput.split()) > 1:
             if g.player.room == "factory":
                 print_desc("<p>.<n><p><p>..<n><p><p>...<n><p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.<n> The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
+                g.points.start_belt.done = True
                 g.rooms[g.player.room].items.append('widget')
                 g.item['widget'].visible = True
                 g.rooms[g.player.room].running = True
@@ -597,28 +625,32 @@ def process_action(g,textinput):
     def __action_eat(g,textinput,action):
         item = get_item(' '.join(textinput.split()[1:]))
         if item:
-            print "You eat the %s." % item.name
-            try:
-                # No matter what it is, if you ate it then it shouldn't be in your inventory anymore.
-                g.player.inventory.remove(item.id)
-            except ValueError:
-                pass
+            if item.id in g.player.inventory:
+                print "You eat the %s." % item.name
+                try:
+                    # No matter what it is, if you ate it then it shouldn't be in your inventory anymore.
+                    g.player.inventory.remove(item.id)
+                except ValueError:
+                    pass
 
-            if item.id == "picture":
-                print_desc("<p><p>.<n><p><p>..<n><p><n>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><p><p><n><n>***** YOU HAVE DIED *****<n><n>")
-                __action_exit(g,"death","eat")
-            elif item.id == "redpill":
-                print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!")
-            elif item.id == "bluepill":
-                print bcolors.CYAN
-                print_desc("W H O A<n>.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?<n><p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"<n><p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.<n><p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.<n><p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.<n><p>The effects of the |g.item['bluepill'].name| are wearing off.<n><p>...")
-                print bcolors.ENDC
-                print_desc("<p>..<p>.<p>Uh oh.")
-                g.item['feelings'].visible = True
-                g.item['senseofself'].visible = True
-                g.item['willtolive'].visible = True
+                if item.id == "picture":
+                    print_desc("<p><p>.<n><p><p>..<n><p><n>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><p><p><n><n>***** YOU HAVE DIED *****<n><n>")
+                    __action_exit(g,"death","eat")
+                elif item.id == "redpill":
+                    print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!<p><n>The song below your subconscious seems to grow louder.")
+                    g.points.eat_red_pill.done = True
+                elif item.id == "bluepill":
+                    print bcolors.CYAN
+                    print_desc("W H O A<n>.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?<n><p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"<n><p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.<n><p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.<n><p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.<n><p>The effects of the |g.item['bluepill'].name| are wearing off.<n><p>...")
+                    print bcolors.ENDC
+                    print_desc("<p>..<p>.<p>Uh oh.")
+                    g.item['feelings'].visible = True
+                    g.item['senseofself'].visible = True
+                    g.item['willtolive'].visible = True
+                else:
+                    print "Nothing happens."
             else:
-                print "Nothing happens."
+                print "You aren't carrying it."
     
     def __action_count(g,textinput,action):
         item = get_item(' '.join(textinput.split()[1:]))
@@ -667,7 +699,7 @@ def process_action(g,textinput):
                 print "You can't do that right now."
     
     def __action_exit(g,textinput,action):
-        print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points, g.points_total)
+        print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points.count_points(), g.points_total)
         sys.exit(0)
 
     actions = {}

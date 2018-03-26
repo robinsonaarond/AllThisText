@@ -774,10 +774,17 @@ def process_action(g,textinput):
     if textinput is not "":
         action_exists = False
         for action in sorted(actions.keys(), key=len, reverse=True):
-            if any(textinput.startswith(x) for x in actions[action].matches):
-                actions[action].run(g,textinput,actions[action])
-                action_exists = True
-                break
+            for match in actions[action].matches:
+                # Most single-character actions should be an exact match
+                if len(match) == 1 and match not in [ "l" ]:
+                    if textinput == match:
+                        print "Match is single character", match
+                        action_exists = True
+                elif textinput.startswith(match):
+                    action_exists = True
+                if action_exists:
+                    actions[action].run(g,textinput,actions[action])
+                    return
         if not action_exists:
             print """I don't understand "%s".""" % textinput
 

@@ -26,21 +26,31 @@ class Globals():
                     if point.done:
                         total += point.points
                 return total
+            def count_total_points(self):
+                total = 0
+                for key, point in self.__dict__.iteritems():
+                    total += point.points
+                return total
+                
             def __init__(self):
                 class p():
                     done = False
                     points = 1
+                # Point-worthy properties
                 self.start_belt = p()
                 self.eat_red_pill = p()
                 self.credits_peon = p()
                 self.credits_banker = p()
-                self.credits_banker.points = 4
                 self.credits_maniac = p()
+                self.robot_picture = p()
+
+                # Custom options for properties
+                self.credits_banker.points = 4
                 self.credits_maniac.points = 5
 
         self.moves            = 0
         self.points           = Points()
-        self.points_total     = 50
+        self.points_total     = self.points.count_total_points()
         self.secrets_found    = 0
         self.total_secrets    = 0
         self.puzzles_solved   = 0
@@ -617,6 +627,7 @@ def process_action(g,textinput):
         # Match robot picture action
         if any(x in text for x in g.item['supervisor'].matches) and any(x in text for x in g.item['picture'].matches):
             all_this_time(g)
+            g.points.robot_picture.done = True
             g.item['supervisor'].sadness = False
             print_desc("Your |g.item['supervisor'].name| blows his nose.  Looking up at a security camera, he says loudly, \"Now get back to those widgets!\"  He smiles with a faraway look in his eyes and whispers to you, \"I've never seen the moon.\"<p><p>He hands you a |g.item['bluepill'].name| and winks.")
             g.player.inventory.append('bluepill')

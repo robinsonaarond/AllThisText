@@ -423,6 +423,24 @@ def get_item(textinput):
         print_desc("You don't see any %s here." % textinput)
         return item
 
+def get_action(g, textinput):
+    if textinput is not "":
+        action_exists = False
+        for action in sorted(g.actions.keys(), key=len, reverse=True):
+            for match in g.actions[action].matches:
+                # Most single-character actions should be an exact match
+                if len(match) == 1 and match not in [ "l" ]:
+                    if textinput == match:
+                        print "Match is single character", match
+                        action_exists = True
+                elif textinput.startswith(match):
+                    action_exists = True
+                if action_exists:
+                    return g.actions[action]
+        if not action_exists:
+            print """I don't know how to "%s".""" % textinput
+            return None
+
 def process_widget(g,_all=False):
     if g.item['widget'].visible:
         if not _all:
@@ -705,9 +723,12 @@ def process_action(g,textinput):
             print "Type 'help <action>' to learn about your life."
         else:
             try:
-                print g.actions[textinput.split()[1]].description
-            except:
+                action = get_action(g,textinput.split()[1])
+                if action:
+                    print action.description
+            except Exception as e:
                 print "You can't do that right now."
+                print e
     
     def __action_exit(g,textinput,action):
         print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points.count_points(), g.points_total)
@@ -788,6 +809,12 @@ def process_action(g,textinput):
             "run"           : __action_go
         },
         {
+            "id"            : "action",
+            "matches"       : [ "action", "<action>" ],
+            "description"   : "Don't be a smart aleck.",
+            "run"           : __action_cant
+        },
+        {
             "id"            : "nonono",
             "matches"       : [ "rip", "kill", "sing", "love" ],
             "description"   : "All the things you can't do in this game.",
@@ -814,22 +841,11 @@ def process_action(g,textinput):
 
     g.actions = actions
     
-    if textinput is not "":
-        action_exists = False
-        for action in sorted(actions.keys(), key=len, reverse=True):
-            for match in actions[action].matches:
-                # Most single-character actions should be an exact match
-                if len(match) == 1 and match not in [ "l" ]:
-                    if textinput == match:
-                        print "Match is single character", match
-                        action_exists = True
-                elif textinput.startswith(match):
-                    action_exists = True
-                if action_exists:
-                    actions[action].run(g,textinput,actions[action])
-                    return
-        if not action_exists:
-            print """I don't understand "%s".""" % textinput
+    a = get_action(g,textinput)
+    try:
+        a.run(g,textinput,a)
+    except:
+        pass
 
 def run_game(g):
     reset_game(g)

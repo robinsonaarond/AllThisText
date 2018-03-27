@@ -200,7 +200,7 @@ def spawn_items():
                 "name"        : "PICTURE OF THE MOON", 
                 "description" : "It is a picture of the moon.",
                 "examined"    : "You see nothing special about |g.item['picture'].name|.  |g.item['picture'].description",
-                "matches"     : [ "picture", "picture of the moon", "pic", "photo" ],
+                "matches"     : [ "picture", "picture of the moon", "picture moon", "pic", "photo" ],
                 "takeable"    : True,
                 "taketext"    : ", and put it in your pocket",
             },
@@ -288,7 +288,7 @@ def spawn_items():
                 "name"        : "SENSE OF SELF", 
                 "description" : "It's a circuit board.  It is labeled SENSE OF SELF.",
                 "examined"    : "You examine them but you really don't know much about FEELINGS.",
-                "matches"     : [ "sense of self" ],
+                "matches"     : [ "sense of self", "sense self" ],
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "The |g.item['senseofself'].name| is blocked by the |g.item['feelings'].name|.  You'll have to take that one first.",
@@ -312,6 +312,15 @@ def spawn_items():
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "You can't take the |g.item['widget'].name|.",
+            },
+            {
+                "id"          : "opening",
+                "name"        : "CONVEYOR BELT OPENING",
+                "matches"     : [ "opening" ],
+                "description" : "It looks like something small could appear out of that opening at any moment.",
+                "takeable"    : False,
+                "visible"     : False,
+                "taketext"    : "You can't take an opening.",
             },
             {
                 "id"          : "belt",
@@ -398,7 +407,7 @@ def reset_game(g):
     enter_room(g)
 
 def all_this_time(g):
-    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.  You feel the song of the |g.item['belt'].name| opening in your mind like the bloom of a... flower?  Whatever that is.  His words merge with the song.<p><p><p><n><n>All we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time<n>")
+    print_desc("Your |g.item['supervisor'].name| sees the |g.item['picture'].name| and immediately begins to cry.  He sings a little tune.  You feel the song of the |g.item['belt'].name| opening in your mind like the bloom of a... flower?  Whatever _that_ is.  His words merge with the song.<p><p><p><n><n>All we'll have is<p><p>All this time<p><p>All we'll have is<p><p>All this time<p><p>All this time<n>")
 
 def get_item(textinput):
     # Generate list of matchable items and their corresponding id
@@ -593,10 +602,12 @@ def process_action(g,textinput):
             item_name = textinput.replace(action, "", 1).strip()
             item = get_item(item_name)
             if item:
+                if item.id == "belt":
+                    g.item['opening'].visible = True
                 if action == "examine" and hasattr(item, 'examined'):
                     print_desc(item.examined)
                 else:
-                    print "You look at the %s.  %s" % (item.name, print_desc(item.description, output=False))
+                    print_desc("You look at the %s.  %s" % (item.name, print_desc(item.description, output=False)))
         # If no argument, it must be the room.  Use the short description
         else:
             room = g.rooms[g.player.room]
@@ -804,7 +815,7 @@ def process_action(g,textinput):
         },
         {
             "id"            : "go",
-            "matches"       : [ "go", "go north", "go south", "go east", "go west", "e", "w", "s", "n" ],
+            "matches"       : [ "go", "go north", "go south", "go east", "go west", "go n", "go s", "go e", "go w", "n", "s", "e", "w" ],
             "description"   : "For going into other rooms.  YMMV.",
             "run"           : __action_go
         },
@@ -816,7 +827,7 @@ def process_action(g,textinput):
         },
         {
             "id"            : "nonono",
-            "matches"       : [ "rip", "kill", "sing", "love" ],
+            "matches"       : [ "rip", "kill", "sing", "love", "block" ],
             "description"   : "All the things you can't do in this game.",
             "run"           : __action_cant
         },
@@ -870,5 +881,5 @@ if __name__ == "__main__":
     static_images(g,"post")
     g.player = Player()
     # Only support pidgin English. Aooga.
-    g.word_ignore = [ "the", "in", "to", "into", "on", "at", "a" ]
+    g.word_ignore = [ "the", "of", "in", "to", "into", "on", "at", "a" ]
     run_game(g)

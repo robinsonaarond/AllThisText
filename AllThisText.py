@@ -351,7 +351,7 @@ def spawn_rooms():
                 "hint_length" : 6,
                 "running"     : False,
                 "items"       : [],
-                "itemstext"   : "  You also see: |', '.join([g.item[x].name for x in g.rooms[g.player.room].items])|."
+                "itemstext"   : "  You also see: |', '.join([g.item[x].name for x in g.rooms[g.player.room].items if g.item[x].visible])|."
             }
         ]
     for room in room_list:
@@ -397,7 +397,12 @@ def enter_room(g):
     room_desc = room.description
     room.time_in_room = 0
     if len(room.items) > 0:
-        room_desc = room_desc + room.itemstext
+        v = []
+        for i in room.items:
+            if i.visible:
+                v.append(i)
+        if len(v) > 0:
+            room_desc = room_desc + room.itemstext
     print_desc(room_desc)
 
 def reset_game(g):
@@ -565,6 +570,7 @@ def process_action(g,textinput):
             if item.takeable:
                 print "You take the %s%s." % (item.name,print_desc(item.taketext, output=False))
                 g.player.inventory.append(item.id)
+                g.rooms['factory'].items.remove(item.id)
                 if item.id == "feelings":
                     g.item['senseofself'].takeable = True
                 if item.id == "senseofself":
@@ -577,6 +583,13 @@ def process_action(g,textinput):
     
     def __action_drop(g,textinput,action):
         text = textinput.split()
+        if all([x in ["drop", "picture", "opening"] for x in text]):
+            if "picture" in g.player.inventory and g.item['opening'].visible:
+                print_desc("You stuff the |g.item['picture'].name| into the |g.item['opening'].name|.")
+                g.player.inventory.remove("picture")
+                g.rooms['factory'].items.append("picture")
+                g.item['picture'].visible = False
+                return
         if len(text) > 1:
             itemname = " ".join(text[1:])
             try:
@@ -612,7 +625,14 @@ def process_action(g,textinput):
         else:
             room = g.rooms[g.player.room]
             if len(room.items) > 0:
-                room_desc = room.shortdesc + room.itemstext
+                v = []
+                for i in room.items:
+                    if g.item[i].visible:
+                        v.append(i)
+                if len(v) > 0:
+                    room_desc = room.shortdesc + room.itemstext
+                else:
+                    room_desc = room.shortdesc
             else:
                 room_desc = room.shortdesc
             print_desc(room_desc)
@@ -628,6 +648,9 @@ def process_action(g,textinput):
     def __action_start(g,textinput,action):
         if len(textinput.split()) > 1:
             if g.player.room == "factory":
+                if "picture" in g.rooms["factory"].items and g.item['picture'].visible == False:
+                    print_desc("<p><n>As the belt starts to roll, a small PICTURE suddenly pops out, gives a little twirl mid-air, and slowly flutters down to the floor.")
+                    g.item['picture'].visible = True
                 print_desc("<p>.<n><p><p>..<n><p><p>...<n><p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.<n> The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
                 g.points.start_belt.done = True
                 g.rooms[g.player.room].items.append('widget')
@@ -855,7 +878,7 @@ def process_action(g,textinput):
     a = get_action(g,textinput)
     try:
         a.run(g,textinput,a)
-    except:
+    except Exception as e:
         pass
 
 def run_game(g):

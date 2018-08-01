@@ -124,7 +124,9 @@ Revision 79 / Serial number 58784
 
 """
         print i
-        time.sleep(1)
+        time.sleep(g.sleep_interval)
+        time.sleep(g.sleep_interval)
+        time.sleep(g.sleep_interval)
         print(chr(27) + "[2J")
     elif img == "moon":
         i = """
@@ -697,7 +699,7 @@ def process_action(g,textinput):
                     pass
 
                 if item.id == "picture":
-                    print_desc("<p><p>.<n><p><p>..<n><p><n>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><p><p><n><n>***** YOU HAVE DIED *****<n><n>")
+                    print_desc("<p>.<n><p>..<p><p><n><n>Your stomach begins to feel queasy.  Your pulse races.  Slowly, you feel the poisonous ink from |g.item['picture'].name| seeping into your blood.<p><p><n><n>***** YOU HAVE DIED *****<n><n>")
                     __action_exit(g,"death","eat")
                 elif item.id == "redpill":
                     print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!<p><n>The song below your subconscious seems to grow louder.")

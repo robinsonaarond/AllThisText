@@ -55,7 +55,7 @@ class Globals():
         self.total_secrets    = 0
         self.puzzles_solved   = 0
         self.total_puzzles    = 0
-        self.sleep_interval   = 1.0
+        self.sleep_interval   = 0.1
         self.item             = spawn_items()
         self.rooms            = spawn_rooms()
 
@@ -283,13 +283,13 @@ def spawn_items():
                 "examined"    : "You examine them but you really don't know much about FEELINGS.",
                 "matches"     : [ "feelings", "feelings circuit board", "feels" ],
                 "visible"     : False,
-                "taketext"    : "  I mean, he's a robot right?  They're probably not even real feelings.",
+                "taketext"    : "  I mean, he's a robot right?  They're probably not even real feelings",
             },
             {   
                 "id"          : "senseofself", 
                 "name"        : "SENSE OF SELF", 
                 "description" : "It's a circuit board.  It is labeled SENSE OF SELF.",
-                "examined"    : "You examine them but you really don't know much about FEELINGS.",
+                "examined"    : "You examine them but you really don't know much about yourself.  Or any self, really.",
                 "matches"     : [ "sense of self", "sense self" ],
                 "takeable"    : False,
                 "visible"     : False,
@@ -300,7 +300,7 @@ def spawn_items():
                 "name"        : "WILL TO LIVE", 
                 "description" : "It's a circuit board.  It is labeled WILL TO LIVE.",
                 "examined"    : "You think about your own WILL TO LIVE.  Is is pre-programmed in like this?",
-                "matches"     : [ "will to live" ],
+                "matches"     : [ "will to live", "will live", "live" ],
                 "takeable"    : False,
                 "visible"     : False,
                 "taketext"    : "The |g.item['willtolive'].name| is blocked by the |g.item['senseofself'].name|.  You'll have to take that one first.",
@@ -506,10 +506,6 @@ def end_game(g):
                 print "COME ON.  DO IT."
             elif text_sanitized == "":
                 pass
-            elif text_sanitized == "take sense of self":
-                print_desc("Sure, why not?  You take, and you take, and you take.  Because you're a winner.")
-                g.item['willtolive'].takeable = True
-                g.player.inventory.append("senseofself")
             elif text_sanitized in ["take will to live","take will  live","take will","take will live"] and "willtolive" not in g.player.inventory and g.item['willtolive'].takeable == True:
                 print_desc("Wow.  OK, but this may kill your |g.item['supervisor'].name|.  Are you sure? (y/n)")
                 g.player.inventory.append("willtolive")
@@ -521,7 +517,7 @@ def end_game(g):
                 print_desc("<p><n>He won't last long now.")
                 the_end_is_near = True
             else:
-                print "I care about \"%s\".  You know what you need to do." % textinput
+                print "I don't care about \"%s\".  You know what you need to do." % textinput
         else:
             end_turn_count += 1
             if text_sanitized.startswith("put feelings"):
@@ -572,11 +568,14 @@ def process_action(g,textinput):
             if item.takeable:
                 print "You take the %s%s." % (item.name,print_desc(item.taketext, output=False))
                 g.player.inventory.append(item.id)
-                g.rooms['factory'].items.remove(item.id)
+                if item.id in g.rooms["factory"].items:
+                    g.rooms['factory'].items.remove(item.id)
                 if item.id == "feelings":
                     g.item['senseofself'].takeable = True
+                    g.item['senseofself'].taketext = ".  Sure, why not?  You take, and you take, and you take.  Because you're a winner"
                 if item.id == "senseofself":
                     g.item['willtolive'].takeable = True
+                    g.item['willtolive'].taketext = ""
                     end_game(g)
             else:
                 print_desc(item.taketext)

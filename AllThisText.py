@@ -511,9 +511,9 @@ def end_game(g):
                 g.player.inventory.append("willtolive")
             elif "willtolive" in g.player.inventory and text_sanitized in [ "y", "n" ]:
                 if text_sanitized == "y":
-                    print_desc("You take your |g.item['willtolive'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
+                    print_desc("You take your |g.item['supervisor'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
                 elif text_sanitized == "n":
-                    print_desc("Too bad.  Some decisions are hard.  You take your |g.item['willtolive'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
+                    print_desc("Too bad.  Some decisions are hard.  You take your |g.item['supervisor'].name|'s |g.item['willtolive'].name|.  You hear the hum of his inner workings stutter and slow.")
                 print_desc("<p><n>He won't last long now.")
                 the_end_is_near = True
             else:

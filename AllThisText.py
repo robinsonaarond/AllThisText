@@ -22,13 +22,13 @@ class Globals():
         class Points():
             def count_points(self):
                 total = 0
-                for key, point in self.__dict__.iteritems():
+                for key, point in self.__dict__.items():
                     if point.done:
                         total += point.points
                 return total
             def count_total_points(self):
                 total = 0
-                for key, point in self.__dict__.iteritems():
+                for key, point in self.__dict__.items():
                     total += point.points
                 return total
                 
@@ -55,7 +55,7 @@ class Globals():
         self.total_secrets    = 0
         self.puzzles_solved   = 0
         self.total_puzzles    = 0
-        self.sleep_interval   = 0.1
+        self.sleep_interval   = 1.0
         self.item             = spawn_items()
         self.rooms            = spawn_rooms()
 
@@ -97,7 +97,7 @@ class bcolors:
 
 def static_images(g,img):
     if img == "post":
-        print(chr(27) + "[2J")
+        print((chr(27) + "[2J"))
         i = """
 
 
@@ -123,11 +123,11 @@ Revision 79 / Serial number 58784
 
 
 """
-        print i
+        print(i)
         time.sleep(g.sleep_interval)
         time.sleep(g.sleep_interval)
         time.sleep(g.sleep_interval)
-        print(chr(27) + "[2J")
+        print((chr(27) + "[2J"))
     elif img == "moon":
         i = """
             .          .                                                    .
@@ -181,7 +181,7 @@ Revision 79 / Serial number 58784
                 .                                           .          """
         for line in i.splitlines():
             time.sleep(0.1)
-            print line
+            print(line)
 
 def animate_stars():
     stars = [ "+", "*", "*", ".", ".", ".", "." ]
@@ -335,7 +335,7 @@ def spawn_items():
         ]
     for item in item_list:
         obj = Item()
-        for k, v in item.items():
+        for k, v in list(item.items()):
             setattr(obj, k, item[k])
         object_list[item['id']] = obj
     return object_list
@@ -358,7 +358,7 @@ def spawn_rooms():
         ]
     for room in room_list:
         obj = Room()
-        for k, v in room.items():
+        for k, v in list(room.items()):
             setattr(obj, k, room[k])
         object_list[room['id']] = obj
     return object_list
@@ -387,9 +387,9 @@ def print_desc(room_desc, output=True):
                 time.sleep(g.sleep_interval)
                 if line:
                     for l in line.replace('<n>', '\n').split('\n'):
-                        print '\n'.join(wrap(l))
+                        print('\n'.join(wrap(l)))
         else:
-            print '\n'.join(wrap(desc.replace('<n>', '\n')))
+            print('\n'.join(wrap(desc.replace('<n>', '\n'))))
     else:
         return desc
 
@@ -420,7 +420,7 @@ def get_item(textinput):
     # Generate list of matchable items and their corresponding id
     available_items = []
     item = None
-    for k, i in g.item.iteritems():
+    for k, i in g.item.items():
         for match in i.matches:
             available_items.append(match + '|' + k)
 
@@ -442,19 +442,19 @@ def get_item(textinput):
 def get_action(g, textinput):
     if textinput is not "":
         action_exists = False
-        for action in sorted(g.actions.keys(), key=len, reverse=True):
+        for action in sorted(list(g.actions.keys()), key=len, reverse=True):
             for match in g.actions[action].matches:
                 # Most single-character actions should be an exact match
                 if len(match) == 1 and match not in [ "l" ]:
                     if textinput == match:
-                        print "Match is single character", match
+                        print("Match is single character", match)
                         action_exists = True
                 elif textinput.startswith(match):
                     action_exists = True
                 if action_exists:
                     return g.actions[action]
         if not action_exists:
-            print """I don't know how to "%s".""" % textinput
+            print("""I don't know how to "%s".""" % textinput)
             return None
 
 def process_widget(g,_all=False):
@@ -499,11 +499,11 @@ def end_game(g):
 
     # Note: https://xkcd.com/1378/ about this wall of conditionals
     while True:
-        textinput = raw_input("\n>")
+        textinput = input("\n>")
         text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
         if not the_end_is_near:
             if textinput == "" and all(x in g.player.inventory for x in ['feelings','senseofself']):
-                print "COME ON.  DO IT."
+                print("COME ON.  DO IT.")
             elif text_sanitized == "":
                 pass
             elif text_sanitized in ["take will to live","take will  live","take will","take will live"] and "willtolive" not in g.player.inventory and g.item['willtolive'].takeable == True:
@@ -517,19 +517,19 @@ def end_game(g):
                 print_desc("<p><n>He won't last long now.")
                 the_end_is_near = True
             else:
-                print "I don't care about \"%s\".  You know what you need to do." % textinput
+                print("I don't care about \"%s\".  You know what you need to do." % textinput)
         else:
             end_turn_count += 1
             if text_sanitized.startswith("put feelings"):
-                print "You can't put FEELINGS there."
+                print("You can't put FEELINGS there.")
             elif text_sanitized.startswith("get feelings"):
-                print "You already have FEELINGS."
+                print("You already have FEELINGS.")
             elif text_sanitized.startswith("circuit boards"):
                 print_desc("What do you want to do with the |g.item['circuit'].name|?")
             elif text_sanitized.startswith("put c"):
-                print "I don't understand \"%s\"" % textinput
+                print("I don't understand \"%s\"" % textinput)
             elif text_sanitized == "what":
-                print "What?"
+                print("What?")
 
             if end_turn_count == 2:
                 print_desc("<p><n>Your |g.item['supervisor'].name| coughs.  His eyes are vacant, glassy.")
@@ -561,12 +561,12 @@ def process_action(g,textinput):
             if not item:
                 return
         except:
-            print "How can you take '%s'?  I don't know what it is." % textinput
+            print("How can you take '%s'?  I don't know what it is." % textinput)
             return
         # Assume it's an Item
         if item.id not in g.player.inventory:
             if item.takeable:
-                print "You take the %s%s." % (item.name,print_desc(item.taketext, output=False))
+                print("You take the %s%s." % (item.name,print_desc(item.taketext, output=False)))
                 g.player.inventory.append(item.id)
                 if item.id in g.rooms["factory"].items:
                     g.rooms['factory'].items.remove(item.id)
@@ -580,7 +580,7 @@ def process_action(g,textinput):
             else:
                 print_desc(item.taketext)
         else:
-            print "You can't take the %s because you already have it." % item.name
+            print("You can't take the %s because you already have it." % item.name)
     
     def __action_drop(g,textinput,action):
         text = textinput.split()
@@ -598,16 +598,16 @@ def process_action(g,textinput):
                 if not item:
                     return
             except:
-                print "I'm not sure what '%s' even is, let alone know how to drop it." % itemname
+                print("I'm not sure what '%s' even is, let alone know how to drop it." % itemname)
                 return
             if itemname in g.player.inventory:
-                print "You drop the %s." % g.item[itemname].name
+                print("You drop the %s." % g.item[itemname].name)
                 g.player.inventory.remove(itemname)
                 g.rooms[g.player.room].items.append(itemname)
             else:
-                print "You don't actually have the %s" % g.item[itemname].name
+                print("You don't actually have the %s" % g.item[itemname].name)
         else:
-            print "What do you want me to drop?"
+            print("What do you want me to drop?")
     
     def __action_look(g,textinput,action):
         # If there is an argument, it must be an object
@@ -639,12 +639,12 @@ def process_action(g,textinput):
             print_desc(room_desc)
     
     def __action_inventory(g,textinput,action):
-        print "You take stock of your possessions.  You are carrying the following:\n"
+        print("You take stock of your possessions.  You are carrying the following:\n")
         if len(g.player.inventory) == 0:
-            print "Nothing"
+            print("Nothing")
         else:
             for item in g.player.inventory:
-                print "  ", g.item[item].name
+                print("  ", g.item[item].name)
     
     def __action_start(g,textinput,action):
         if len(textinput.split()) > 1:
@@ -658,22 +658,22 @@ def process_action(g,textinput):
                 g.item['widget'].visible = True
                 g.rooms[g.player.room].running = True
             else:
-                print "There's nothing here to start."
+                print("There's nothing here to start.")
         else:
-            print choice(["What do you want me to start?","You want to start something?"])
+            print(choice(["What do you want me to start?","You want to start something?"]))
     
     def __action_go(g,textinput,action):
         # We actually only want exact matches for this action
         if textinput in action.matches:
-            print "There are people at conveyor belts as far as the eye can see."
+            print("There are people at conveyor belts as far as the eye can see.")
         else:
-            print "I don't understand '%s.'" % textinput
+            print("I don't understand '%s.'" % textinput)
     
     def __action_cant(g,textinput,action):
-        print "You can't do that right now."
+        print("You can't do that right now.")
     
     def __action_quit(g,textinput,action):
-        print "You can't quit now!  You haven't processed enough widgets yet!"
+        print("You can't quit now!  You haven't processed enough widgets yet!")
     
     def __action_show(g,textinput,action):
         text = " ".join(textinput.split()[1:])
@@ -690,7 +690,7 @@ def process_action(g,textinput):
         item = get_item(' '.join(textinput.split()[1:]))
         if item:
             if item.id in g.player.inventory:
-                print "You eat the %s." % item.name
+                print("You eat the %s." % item.name)
                 try:
                     # No matter what it is, if you ate it then it shouldn't be in your inventory anymore.
                     g.player.inventory.remove(item.id)
@@ -704,17 +704,17 @@ def process_action(g,textinput):
                     print_desc("  Now you're energized!  Let's process some |g.item['widget'].name|S!<p><n>The song below your subconscious seems to grow louder.")
                     g.points.eat_red_pill.done = True
                 elif item.id == "bluepill":
-                    print bcolors.CYAN
+                    print(bcolors.CYAN)
                     print_desc("W H O A<n>.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?<n><p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"<n><p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.<n><p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.<n><p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.<n><p>The effects of the |g.item['bluepill'].name| are wearing off.<n><p>...")
-                    print bcolors.ENDC
+                    print(bcolors.ENDC)
                     print_desc("<p>..<p>.<p>Uh oh.")
                     g.item['feelings'].visible = True
                     g.item['senseofself'].visible = True
                     g.item['willtolive'].visible = True
                 else:
-                    print "Nothing happens."
+                    print("Nothing happens.")
             else:
-                print "You aren't carrying it."
+                print("You aren't carrying it.")
     
     def __action_count(g,textinput,action):
         item = get_item(' '.join(textinput.split()[1:]))
@@ -722,25 +722,25 @@ def process_action(g,textinput):
             if item.id == "credit":
                 credit_count = g.player.credits
                 if credit_count < 32:
-                    print 'Only %d credits so far.  You need to process more credits!' % credit_count
+                    print('Only %d credits so far.  You need to process more credits!' % credit_count)
                 elif 32 <= credit_count < 64:
-                    print '%d credits!  Not bad.  Almost enough to entertain your goldfish, maybe.' % credit_count
+                    print('%d credits!  Not bad.  Almost enough to entertain your goldfish, maybe.' % credit_count)
                 elif 64 <= credit_count < 128:
-                    print "That's more like it!  With %s credits you can totally watch Bozo's Lament on your screen later." % credit_count
+                    print("That's more like it!  With %s credits you can totally watch Bozo's Lament on your screen later." % credit_count)
                 elif 128 <= credit_count < 200:
-                    print "You have %d credits!  You're going to watch the HECK out of an entertainment when you return to your pod's domicile tonight!" % credit_count
+                    print("You have %d credits!  You're going to watch the HECK out of an entertainment when you return to your pod's domicile tonight!" % credit_count)
                 elif 200 <= credit_count < 400:
-                    print "Whoa, you have %d credits.  That's a lot of credits." % credit_count
+                    print("Whoa, you have %d credits.  That's a lot of credits." % credit_count)
                 elif credit_count >= 400:
-                    print "Alright, %d credits?  That's a stupid amount of credits." % credit_count
+                    print("Alright, %d credits?  That's a stupid amount of credits." % credit_count)
             else:
-                print "I don't know how to count a", item.name, "."
+                print("I don't know how to count a", item.name, ".")
         else:
-            print "I don't know how to count that."
+            print("I don't know how to count that.")
 
     def __action_process(g,textinput,action):
         if len(textinput.split()) <= 1:
-            print "What do you want to process?"
+            print("What do you want to process?")
         else:
             obj = " ".join(textinput.split()[1:])
             if obj == "widget":
@@ -748,25 +748,25 @@ def process_action(g,textinput):
             elif obj == "all widgets":
                 process_widget(g,_all=True)
             else:
-                print "I don't know how to process that."
+                print("I don't know how to process that.")
     
     def __action_boring(g,textinput,action):
-        print "I know, right?"
+        print("I know, right?")
     
     def __action_help(g,textinput,action):
         if len(textinput.split()) == 1:
-            print "Type 'help <action>' to learn about your life."
+            print("Type 'help <action>' to learn about your life.")
         else:
             try:
                 action = get_action(g,textinput.split()[1])
                 if action:
-                    print action.description
+                    print(action.description)
             except Exception as e:
-                print "You can't do that right now."
-                print e
+                print("You can't do that right now.")
+                print(e)
     
     def __action_exit(g,textinput,action):
-        print "Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points.count_points(), g.points_total)
+        print("Thanks for playing.  You played for a total of %s moves, and your score was %s out of a possible %s." % (g.moves, g.points.count_points(), g.points_total))
         sys.exit(0)
 
     actions = {}
@@ -870,7 +870,7 @@ def process_action(g,textinput):
     ]
     for action in action_dict:
         obj = Action()
-        for k, v in action.items():
+        for k, v in list(action.items()):
             setattr(obj, k, action[k])
         actions[action['id']] = obj
 
@@ -891,11 +891,11 @@ def run_game(g):
             if room.time_in_room == room.hint_length + 1 and not room.running:
                 print_desc(room.hint)
         except Exception as e:
-            print "ERROR", e
+            print("ERROR", e)
             pass
         # The old games don't support awesome features like readline
         # or autocomplete, so I'm not going to do it here.
-        textinput = raw_input("\n>")
+        textinput = input("\n>")
         text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
         process_action(g, text_sanitized)
         g.moves += 1

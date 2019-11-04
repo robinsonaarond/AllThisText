@@ -1,18 +1,8 @@
 #! /usr/bin/env python
 
-# Title screen
-# Items.  Can be in inventory (on your person), in a room, accessible at certain times (visible/takeable flag?).  Personal inventory cap?
-# Locations.  Have description (varied based on description), and ingress/egress points.  Each of these needs another location to reference.  Also may have custom text for other exit points that don't work.  Hints if player takes long enough in the room
-# NPCs. Basically like items that can't be taken, and that have state-based dialog.
-# Actions. Look/Inspect/Go/Take/Eat
-# Turn counter
-# Save/Load function
-# Endgame screen
-# Game completion percentage
-# Score (usually a product of secrets found/puzzles solved/% game completed)
-
 import time
 import sys
+import base64
 from random import choice
 from random import randint
 from textwrap import wrap
@@ -58,6 +48,8 @@ class Globals():
         self.sleep_interval   = 1.0
         self.item             = spawn_items()
         self.rooms            = spawn_rooms()
+        self.screenon         = False
+        self.accidentfreedays = 10700
 
 class Room():
     def __init__(self):
@@ -71,18 +63,19 @@ class Room():
 class Player():
     def __init__(self):
         self.name             = ""
-        self.room             = "factory"
-        self.credits          = 0
+        self.room             = "" # Either 'factory' or 'pod'
+        self.credits          = 100
+        self.daily_credits    = 0
         self.inventory        = []
 
 class Item():
     def __init__(self):
         self.name        = ""
         self.description = ""
-        self.location    = "player"
+        self.location    = "player" # Can also be room, specified by id
         self.accessible  = True
-        self.visible     = True
-        self.takeable    = True
+        self.visible     = True     # Will not show up in LOOK command
+        self.takeable    = True     # Can't be removed from room, displays taketext
 
 class bcolors:
     HEADER    = '\033[95m'
@@ -128,6 +121,28 @@ Revision 79 / Serial number 58784
         time.sleep(g.sleep_interval)
         time.sleep(g.sleep_interval)
         print((chr(27) + "[2J"))
+    elif img == "picture":
+        i = """
+****************************************************
+****************************************************
+**                        .            _          **
+**  .                                 / |   .     **
+**          .                         |_|         **
+**                  .           .             .   **     
+**                                                **
+**            .           .           .           **
+**                                                **
+**   .           .          .                .    **
+**                                                **
+**        #### # # ###   # #   #   #   ## #       **
+**         #   ### ##    ###  # # # #  # ##       **
+**         #   # # ###   #  #  #   #   #  #       **
+**                                                **
+****************************************************
+****************************************************
+
+"""
+        print(i)
     elif img == "moon":
         i = """
             .          .                                                    .
@@ -271,7 +286,7 @@ def spawn_items():
                 "id"          : "circuit", 
                 "name"        : "CIRCUIT BOARDS", 
                 "description" : "They're circuit boards.  They look like they go in something.",
-                "examined"    : "You examine them but you really don't know much about electronics.",
+                "examined"    : "You examine them but you really don't know much about electronics. Widgets, on the other hand... actually, you don't know much about those either.",
                 "matches"     : [ "circuit", "circuits", "circuit boards" ],
                 "takeable"    : False,
                 "taketext"    : "How would you take them?  They're part of the wall.",
@@ -325,6 +340,32 @@ def spawn_items():
                 "taketext"    : "You can't take an opening.",
             },
             {
+                "id"          : "screen",
+                "name"        : "SCREEN",
+                "matches"     : [ "screen", "display", "monitor" ],
+                "description" : "Your 15-inch flat panel screen.  On the bottom left there is a button.",
+                "takeable"    : False,
+                "powered"     : False,
+                "taketext"    : "It is mounted to the wall.",
+            },
+            {
+                "id"          : "fooddispenser",
+                "name"        : "FOOD DISPENSER",
+                "matches"     : [ "dispenser", "food dispenser" ],
+                "description" : "Your 10-inch food dispenser.  On the bottom left there is a button.",
+                "takeable"    : False,
+                "powered"     : False,
+                "taketext"    : "It is mounted to the wall.",
+            },
+            {
+                "id"          : "food",
+                "name"        : "FOOD CUBE",
+                "matches"     : [ "food", "food cube" ],
+                "description" : "Your 10-inch food dispenser.  On the bottom left there is a button.",
+                "powered"     : False,
+                "taketext"    : "",
+            },
+            {
                 "id"          : "belt",
                 "name"        : "CONVEYOR BELT",
                 "matches"     : [ "conveyor", "belt", "conveyor belt" ],
@@ -354,6 +395,17 @@ def spawn_rooms():
                 "running"     : False,
                 "items"       : [],
                 "itemstext"   : "  You also see: |', '.join([g.item[x].name for x in g.rooms[g.player.room].items if g.item[x].visible])|."
+            },
+            {
+                "id"          : "pod",
+                "name"        : "Your Domicile",
+                "description" : "You are in your pod.<n><n>One entire wall is taken up by your 15-inch |g.item['screen'].name|; a real upgrade from the last one.  You are sitting in your chair/bed combo as there is no room to stand.<n><n>To your right is a small platform with your |g.item['fooddispenser'].name|.  On the wall to your left is a small picture of a goldfish, swimming in a bowl.",
+                "shortdesc"   : "The POD is everything you could possibly need.  Why would you go anywhere else?  Oh right, credits.",
+                "hint_length" : 6,
+                "running"     : False,
+                "hint"        : "<n>The SCREEN is powered off.  Maybe try powering it on?",
+                "items"       : [ "screen" ],
+                "itemstext"   : "  You also see: |', '.join([g.item[x].name for x in g.rooms[g.player.room].items if g.item[x].visible])|."
             }
         ]
     for room in room_list:
@@ -367,8 +419,9 @@ def print_desc(room_desc, output=True):
     room_sanitized = []
     # Parse out the template code
     # Currently you can:
-    #   put actual code wrapped in ||, e.g. |g.player.name|
     #   put pauses in the dialog using <p>
+    #   put newlines in the dialog using <n>
+    #   put actual code wrapped in ||, e.g. |g.player.name|
     if "|" in room_desc:
         while "|" in room_desc:
             room_desc = room_desc.split('|')
@@ -393,7 +446,6 @@ def print_desc(room_desc, output=True):
     else:
         return desc
 
-
 def enter_room(g):
     room = g.rooms[g.player.room]
     room_desc = room.description
@@ -401,7 +453,7 @@ def enter_room(g):
     if len(room.items) > 0:
         v = []
         for i in room.items:
-            if i.visible:
+            if g.item[i].visible:
                 v.append(i)
         if len(v) > 0:
             room_desc = room_desc + room.itemstext
@@ -411,6 +463,7 @@ def reset_game(g):
     g.player.room = "factory"
     g.player.name = ""
     g.player.inventory = [ 'picture' ]
+    g.item['picture'].damaged = False
     enter_room(g)
 
 def all_this_time(g):
@@ -462,6 +515,7 @@ def process_widget(g,_all=False):
         if not _all:
             if g.item['supervisor'].visible and not "redpill" in g.player.inventory and g.item['supervisor'].gaveredpill == False:
                 g.player.credits += 8
+                g.player.daily_credits += 8
                 print_desc("Too late!  Your |g.item['supervisor'].name| grips your shoulder.  \"Hey there buddy!,\" he says, \"Seems like you got a little distracted!  Maybe time to take a |g.item['redpill'].name|!\"")
                 g.item['redpill'].visible = True
                 g.item['supervisor'].gaveredpill = True
@@ -470,24 +524,46 @@ def process_widget(g,_all=False):
             else:
                 print_desc("You process the |g.item['widget'].name|.  You earn 8 |g.item['credit'].name|! Another |g.item['widget'].name| appears.")
                 g.player.credits += 8
+                g.player.daily_credits += 8
         else:
             if g.item['supervisor'].visible:
                 print_desc("You mindlessly process |g.item['widget'].name|S.  Your |g.item['supervisor'].name| sighs.  \"Good job buddy.  You're really earning some credits I guess.\"")
                 g.item['supervisor'].sadness = True
                 g.item['supervisor'].description = "Your |g.item['supervisor'].name| looks miserable.  He stares bleakly into the middle distance."
             g.player.credits += 64
+            g.player.daily_credits += 64
 
         if g.player.credits >= 48 and not g.item['supervisor'].visible:
             print_desc("You mindlessly process widgets.  Your thoughts begin to wander.<n><p><p><p><p>You think about what entertainment you will watch when you return to your pod's domicile.<n><p><p>You notice a |g.item['switch'].name| on the wall that's labeled \"Destroy.\"  Next to it are three empty |g.item['slots'].name| that look like they hold |g.item['circuit'].name|.<n><p><p><p><p>Oh No! You stopped processing |g.item['widget'].name|S and your |g.item['supervisor'].name| is right behind you!")
             g.item['slots'].visible = True
             g.item['switch'].visible = True
             g.item['supervisor'].visible = True
+
+        if g.player.daily_credits >= 200:
+            print_desc("You've really processed a lot of |g.item['widget'].name|S.<p>Your |g.item['supervisor'].name| sighs again, and stands up.<p><n>\"Alright, buddy, you've earned enough credits for today.<p>Why don't you head on home?\"<p><n><p>Satisfied with a full day's work, you head to your POD.<p><p><n>")
+
+            # Me trying my best to revert all state in the factory so you can try again the next day without stuff being messed up
+            g.rooms["factory"].running = False
+            try:
+                g.rooms[g.player.room].items.remove('widget')
+            except:
+                pass
+            g.item['widget'].visible = False
+            g.player.room = "pod"
+            g.item['slots'].visible = False
+            g.item['switch'].visible = False
+            g.item['supervisor'].visible = False
+            g.item['supervisor'].sadness = False
+            g.item['redpill'].visible = False
+            g.rooms['factory'].shortdesc = "You are on the factory floor.  It's an enormous room.  You see a |g.item['belt'].name| in front of you."
+            g.item['supervisor'].gaveredpill = False
+            enter_room(g)
         
-        if g.player.credits > 1000:
+        if g.player.credits > 2000:
             g.points.credits_maniac.done = True
-        if g.player.credits > 300:
+        if g.player.credits > 1000:
             g.points.credits_banker.done = True
-        elif g.player.credits >= 8:
+        elif g.player.credits >= 100:
             g.points.credits_peon.done = True
     else:
         print_desc("You can't see any widgets.")
@@ -499,6 +575,7 @@ def end_game(g):
 
     # Note: https://xkcd.com/1378/ about this wall of conditionals
     while True:
+        g.moves += 1
         textinput = input("\n>")
         text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
         if not the_end_is_near:
@@ -539,6 +616,7 @@ def end_game(g):
                 print_desc("<p><n>Your |g.item['supervisor'].name|'s legs fail.  He crumples to the floor and looks up with sad resignation.  \"That's OK buddy, you tried,\" he says.")
             elif end_turn_count == 9:
                 print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.<n><p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><n>The |g.item['belt'].name| in front of you shuts down suddenly, but the song in your mind is louder than ever.<p><p><n>A hiss of depressurization, and you feel the kiss of cold air from outside.<p><n>Your |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p><n>As the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p><n>There is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
+                g.accidentfreedays = 0
                 static_images(g,"moon")
                 animate_stars()
                 print_desc("As the song dies away, and you gaze at the moon in the sky, you realize you've reached...<p><p><n><n>THE END<n><p>")
@@ -568,8 +646,8 @@ def process_action(g,textinput):
             if item.takeable:
                 print("You take the %s%s." % (item.name,print_desc(item.taketext, output=False)))
                 g.player.inventory.append(item.id)
-                if item.id in g.rooms["factory"].items:
-                    g.rooms['factory'].items.remove(item.id)
+                if item.id in g.rooms[g.player.room].items:
+                    g.rooms[g.player.room].items.remove(item.id)
                 if item.id == "feelings":
                     g.item['senseofself'].takeable = True
                     g.item['senseofself'].taketext = ".  Sure, why not?  You take, and you take, and you take.  Because you're a winner"
@@ -625,6 +703,7 @@ def process_action(g,textinput):
         # If no argument, it must be the room.  Use the short description
         else:
             room = g.rooms[g.player.room]
+            room_desc = room.shortdesc
             if len(room.items) > 0:
                 v = []
                 for i in room.items:
@@ -650,17 +729,25 @@ def process_action(g,textinput):
         if len(textinput.split()) > 1:
             if g.player.room == "factory":
                 if "picture" in g.rooms["factory"].items and g.item['picture'].visible == False:
-                    print_desc("<p><n>As the belt starts to roll, a small PICTURE suddenly pops out, gives a little twirl mid-air, and slowly flutters down to the floor.")
+                    print_desc("<p><n>As the belt starts to roll, a small |g.item['picture'].name| suddenly pops out, gives a little twirl mid-air, and slowly flutters down to the floor.")
+                    g.item['picture'].description = "It is a picture of the moon.  It has been creased slightly."
                     g.item['picture'].visible = True
+                    g.item['picture'].damaged = True
                 print_desc("<p>.<n><p><p>..<n><p><p>...<n><p><p>A |g.item['widget'].name| emerges from a hole in the left column.  It moves along the conveyor belt and stops in front of you.<n> The low whirr of the |g.item['belt'].name| has a pleasing rhythmic quality to it.  You can feel a song emerging just below your subconscious.")
                 g.points.start_belt.done = True
                 g.rooms[g.player.room].items.append('widget')
                 g.item['widget'].visible = True
                 g.rooms[g.player.room].running = True
+            elif g.player.room == "pod":
+                __action_power(g,textinput,action)
             else:
                 print("There's nothing here to start.")
         else:
             print(choice(["What do you want me to start?","You want to start something?"]))
+
+    def __action_power(g,textinput,action):
+        print("You turn on the screen.")
+        g.screenon = True
     
     def __action_go(g,textinput,action):
         # We actually only want exact matches for this action
@@ -723,15 +810,15 @@ def process_action(g,textinput):
                 credit_count = g.player.credits
                 if credit_count < 32:
                     print('Only %d credits so far.  You need to process more credits!' % credit_count)
-                elif 32 <= credit_count < 64:
+                elif 32 <= credit_count < 200:
                     print('%d credits!  Not bad.  Almost enough to entertain your goldfish, maybe.' % credit_count)
-                elif 64 <= credit_count < 128:
-                    print("That's more like it!  With %s credits you can totally watch Bozo's Lament on your screen later." % credit_count)
-                elif 128 <= credit_count < 200:
-                    print("You have %d credits!  You're going to watch the HECK out of an entertainment when you return to your pod's domicile tonight!" % credit_count)
                 elif 200 <= credit_count < 400:
+                    print("That's more like it!  With %s credits you can totally watch Bozo's Lament on your screen later. Again." % credit_count)
+                elif 400 <= credit_count < 600:
+                    print("You have %d credits!  You're going to watch the HECK out of an entertainment when you return to your pod's domicile tonight!" % credit_count)
+                elif 600 <= credit_count < 1500:
                     print("Whoa, you have %d credits.  That's a lot of credits." % credit_count)
-                elif credit_count >= 400:
+                elif credit_count >= 1500:
                     print("Alright, %d credits?  That's a stupid amount of credits." % credit_count)
             else:
                 print("I don't know how to count a", item.name, ".")
@@ -752,6 +839,116 @@ def process_action(g,textinput):
     
     def __action_boring(g,textinput,action):
         print("I know, right?")
+
+    def __action_enterscreen(g,textinput,action):
+        seeing_entertainments = [ 
+            "You watch 57 minutes of static.",
+            "You watch a riveting tale about a youngling who, after much hardship and trial, achieves their lifelong dream of working at the CONVEYOR BELT.",
+            "A young and depressed vampire doesn't like their dark and cloudy life.",
+            "You went to Las Vegas in a $20,000 car and came back in a $200,000 Greyhound bus.",
+            "You sat around and played solitaire all weekend.",
+            "This weekend you hung out at the mall, ate junk food, and made your mother ashamed of you.",
+            ]
+        listening_entertainments = [ 
+            "The soothing whir of the contralto female auto-generated voice both filled and thrilled you.  It was a TRIUMPH.",
+            "You listen to A striking commentary on the wolfishness of the earth, complete with a running score.  Me: 0  Big Bad World: 1",
+            "You listen to John Cage's 4:33. Archaelogists believe it was also known by the alternate name 'The Sound of Silence.'",
+            "You hear a flurry of beeps and boops and an electronic scratching sound.  Finally you hear the words 'Welcome.  You've got mail.'  You wonder again just what mail is, exactly.", 
+            ]
+
+        def _out_of_credits():
+            print_desc("You're out of credits.  Maybe it's time to go to sleep; get yourself ready for another day at work.<p><p>")
+
+        def _process_choice(g,c):
+            if c == 1:
+                if g.player.credits >= 50:
+                    print("Seeing ENTERTAINMENTS are the best.")
+                    g.player.credits -= 50
+                    time.sleep(g.sleep_interval)
+                    print_desc("<p>.<p>..<p><p>")
+                    print(choice(seeing_entertainments))
+                    print_desc("<p>..<p>.<p>Your ENTERTAINMENT is complete.<p>")
+                else:
+                    _out_of_credits()
+            elif c == 2:
+                if g.player.credits >= 20:
+                    g.player.credits -= 20
+                    print("You lean back.")
+                    print_desc("<p>.<p>..<p><p>")
+                    print(choice(listening_entertainments))
+                    print_desc("<p>..<p>.<p>Your ENTERTAINMENT is complete.<p>")
+                else:
+                    _out_of_credits()
+            elif c == 3:
+                if g.player.credits >= 150:
+                    g.player.credits -= 150
+                    print_desc("<p>.<p>..<p><p>")
+                    print("Whoa.")
+                    print_desc("<p>..<p>.<p>Your ENTERTAINMENT is complete.<p>")
+                else:
+                    _out_of_credits()
+            elif c == 4:
+                if g.player.credits >= 25:
+                    g.player.credits -= 25
+                    if g.item['picture'].damaged == True:
+                        print_desc("You place |g.item['picture'].name| in front of the screen, and a bright blue beam shoots out and scans the image.<p>.<p>..<p>The light seems to be struggling on the damaged portion of the picture.  Now something completely different is coming up:<p><p>")
+                        allen_game()
+                    else:
+                        print_desc("You place |g.item['picture'].name| in front of the screen, and a bright blue beam shoots out and scans the image.<p>Here it is:")
+                        static_images(g,"picture")
+                else:
+                    _out_of_credits()
+            elif c == 5:
+                stats = "\n".join(["DAYS SINCE LAST ACCIDENT:  %d",
+                                "CREDITS EARNED TODAY:      %d",
+                                "CREDITS TOTAL:             %d",
+                                "SCORE (SO FAR/TOTAL):      %s",
+                                "IN-GAME MOVES:             %d"])
+                print(stats % (g.accidentfreedays, 
+                               g.player.daily_credits, 
+                               g.player.credits, 
+                               str(g.points.count_points()) + "/" + str(g.points_total), 
+                               g.moves))
+            elif c == 6:
+                print_desc("It's been a long day.  Time for a well-deserved rest.  You turn off your screen and lay...<p>down...<p><p>...to sleep.<p><p>Alright, it's a new day.  You go to the factory floor.<p><p><n>")
+                g.screenon = False
+                g.accidentfreedays += 1
+                g.player.daily_credits = 0
+                g.player.room = "factory"
+                enter_room(g)
+
+        opening_screen = "\n".join(["Welcome to your pod's entertainment system.",
+                                    "Select from the following options:",
+                                    "",
+                                    " (1) - Have a seeing ENTERTAINMENT (50 credits)",
+                                    " (2) - Have a listening ENTERTAINMENT (20 credits)",
+                                    " (3) - Have a feeling ENTERTAINMENT (150 credits)",
+                                    " (4) - Scan PICTURE (25 credits)",
+                                    " (5) - Statistics (Free)",
+                                    " (6) - Sleep (Free)"])
+
+        if g.rooms[g.player.room].id == "pod":
+            if g.screenon:
+                while g.rooms[g.player.room].id == "pod":
+                    g.moves += 1
+                    print(opening_screen)
+                    textinput = input("\nSelect 1-6: ")
+                    try:
+                        c = int(textinput)
+                        if 6 >= c >= 1:
+                            _process_choice(g,c)
+                        else:
+                            print("You müssen select a number from 1 to 6")
+                            time.sleep(g.sleep_interval)
+                    except Exception as e:
+                        print("You must select a number from 1 to 6")
+                        print(e)
+                        time.sleep(g.sleep_interval)
+                g.screenon = False
+            else:
+                print_desc("The |g.item['screen'].name| is off.")
+        else:
+            print("You can't do that here.")
     
     def __action_help(g,textinput,action):
         if len(textinput.split()) == 1:
@@ -797,9 +994,15 @@ def process_action(g,textinput):
         },
         {
             "id"            : "start",
-            "matches"       : [ "start", "turn on" ],
+            "matches"       : [ "start" ],
             "description"   : "Start the conveyor belt.",
             "run"           : __action_start
+        },
+        {
+            "id"            : "power",
+            "matches"       : [ "turn on", "power on", "turn", "power" ],
+            "description"   : "Start the SCREEN.",
+            "run"           : __action_power
         },
         {
             "id"            : "count",
@@ -856,6 +1059,12 @@ def process_action(g,textinput):
             "run"           : __action_cant
         },
         {
+            "id"            : "screen",
+            "matches"       : [ "screen", "enter", "enter screen", "log into screen", "log in", "press enter" ],
+            "description"   : "Log into your SCREEN.",
+            "run"           : __action_enterscreen
+        },
+        {
             "id"            : "help",
             "matches"       : [ "help", "?" ],
             "description"   : "Prints an action's description.",
@@ -877,10 +1086,11 @@ def process_action(g,textinput):
     g.actions = actions
     
     a = get_action(g,textinput)
-    try:
-        a.run(g,textinput,a)
-    except Exception as e:
-        pass
+    if a is not None:
+        try:
+            a.run(g,textinput,a)
+        except Exception as e:
+            print(e)
 
 def run_game(g):
     reset_game(g)
@@ -888,7 +1098,7 @@ def run_game(g):
         room = g.rooms[g.player.room]
         try:
             room.time_in_room += 1
-            if room.time_in_room == room.hint_length + 1 and not room.running:
+            if room.id == "factory" and room.time_in_room == room.hint_length + 1 and not room.running:
                 print_desc(room.hint)
         except Exception as e:
             print("ERROR", e)
@@ -899,6 +1109,113 @@ def run_game(g):
         text_sanitized = " ".join([ x for x in textinput.lower().split() if x not in g.word_ignore ])
         process_action(g, text_sanitized)
         g.moves += 1
+
+###
+#  Easter Egg
+###
+
+game_function = \
+"ZGVmIGFsbGVuX2dhbWUoKToKICAgICMjCiAgICAjIEFsbGVuJ3MgYXdlc29tZSBnYW1lCiAgICAjIwoKICAgIGNsYXNzIFBsYWNlKCk6CiAgICAgICAgZGVmIF9faW5pdF9fKHNlbGYpOgogICAgIC" \
+"AgICAgICBzZWxmLnRleHQgICAgICAgPSAiIgogICAgICAgICAgICBzZWxmLmNob2ljZXRleHQgPSAiIgogICAgICAgICAgICBzZWxmLmNob2ljZXMgICAgPSBbXQogICAgICAgICAgICBzZWxmLnB" \
+"hc3N3b3JkICAgPSBGYWxzZQoKICAgIGRlZiBfaW5pdF9wbGFjZXMoKToKICAgICAgICBwbGFjZXMgPSB7fQoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHBsYWNlc1siYmxhbmsiXSA9IHAK" \
+"CiAgICAgICAgcC5wYXNzd29yZCA9IFRydWUKICAgICAgICBwbGFjZXNbIndhbGtfb25fb25lIl0gPSBwCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAiWW91IGdldCBpbiB5b" \
+"3VyIHNoaXAuIgogICAgICAgIHAuY2hvaWNldGV4dCA9ICJHZXQgaW4geW91ciBzaGlwLiIKICAgICAgICBwLmNob2ljZXMgPSBbICdtYXJzb3V0cG9zdCcsICJ0aXRhbiIsICJlYXJ0aCIsICJsZW" \
+"F2ZXN5c3RlbSIsICJhc3Rlcm9pZGJlbHQiIF0KICAgICAgICBwbGFjZXNbInNoaXAiXSA9IHAKICAgICAgICBwID0gUGxhY2UoKTsgcC50ZXh0ID0gIm5vIHJlc3BvbnNlIjsgcC5jaG9pY2V0ZXh" \
+"0ID0gImdvIHRvIG1hcnMgb3V0cG9zdCB4IjsgcGxhY2VzWyJtYXJzb3V0cG9zdCJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJXZWxjb21lIGJhY2sgaG9tZSEg" \
+"SSBiZXQgeW91ciBmYW1pbHkgd2lsbCBiZSBoYXBweSB0byBzZWUgeW91ISIKICAgICAgICBwLmNob2ljZXRleHQgPSAiZ28gdG8gZWFydGhzIHN5c3RlbSIKICAgICAgICBwLmNob2ljZXMgPSBbI" \
+"CJzaGlwIiwgImVhcnRoX2ZhbWlseSIsICJlYXJ0aF9yZWxheCIgXQogICAgICAgIHBsYWNlc1siZWFydGgiXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAieW91IH" \
+"JlbGF4LiIKICAgICAgICBwLmNob2ljZXRleHQgPSAicmVsYXgiCiAgICAgICAgcC5jaG9pY2VzID0gWyAic2hpcCIsICJlYXJ0aF9mYW1pbHkiIF0KICAgICAgICBwbGFjZXNbJ2VhcnRoX3JlbGF" \
+"4J10gPSBwCgogICAgICAgIHAgPSBQbGFjZSgpCiAgICAgICAgcC50ZXh0ID0gIndlbGNvbWUgdG8gdGhlIGxpYnJhcnkhIgogICAgICAgIHAuY2hvaWNlcyA9IFsgJ3R5bG9uJywgJ3JpdG1lbics" \
+"ICdzaW1ib28nLCAnc2hpcCcgXQogICAgICAgIHAuY2hvaWNldGV4dCA9ICJnbyB0byB0aGUgc3RhdGlvbiBsaWJyYXJ5IDwtLSIKICAgICAgICBwbGFjZXNbImxpYnJhcnkiXSA9IHAKICAgICAgI" \
+"CAKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJ0aGUgdHlsb24gYXJlIG9uZSBvZiB0aGUgbW9zdCBhZHZhbmNlZCBhbmQgc2F2YWdlIHJhY2VzIGtub3duIVxud2UgZ290IG" \
+"1vc3Qgb2YgYXJlIHdlcG9ucyBmcm9tIGEgZnJlbmRseSBncm91cCBvZiB0eWxvbiB0aGF0IGFyZSBub3cgYSByZWJlbGxpb24uXG50aGUgdHlsb24gYXJlIGp1c3Qgb25lIHN0ZXAgZG93biBmcm9" \
+"tIGh1bWFucyBpbiB0ZWNobm9sb2d5LiIKICAgICAgICBwLmNob2ljZXRleHQgPSAidGhlIHR5bG9uIgogICAgICAgIHBsYWNlc1sndHlsb24nXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAg" \
+"ICAgICBwLnRleHQgPSAidGhlIHJpdG1lbiBhcmUgYSBnZW50bGUgcmFjZS4gIHRoZXkgc3BlY2lhbGl6ZSBpbiB0ZWNobm9sb2d5Llxud2UgZ290IG1vc3Qgb2YgYXJlIG1lZGljaW5lIGZyb20gd" \
+"GhlIHJpdG1lbi5cbnRoZXkgYWxzbyBoZWxwZWQgdXMgd2l0aCBhcmUgdHlub2lkIHRocnVzdGVycy4iCiAgICAgICAgcC5jaG9pY2V0ZXh0ID0gInRoZSByaXRtZW4iCiAgICAgICAgcGxhY2VzWy" \
+"dyaXRtZW4nXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAidGhlIHNpbWJvbyBhcmUgYSB2ZXJ5IG15c3RlcmlvdXMgcmFjZS4iCiAgICAgICAgcC5jaG9pY2V0ZXh" \
+"0ID0gInRoZSBzaW1ib28iCiAgICAgICAgcGxhY2VzWydzaW1ib28nXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAiY29vcmRpbmF0ZXMgc2V0LCB0aHJ1c3RlcnMg" \
+"ZnVuY3Rpb25hbC4gIGJsYXN0IG9mZiEiCiAgICAgICAgcC5jaG9pY2V0ZXh0ID0gImdvIHRvIHN5c3RlbSAxIgogICAgICAgIHAuY2hvaWNlcyA9IFsgImxpYnJhcnkiLCAibG9uZXBsYW5ldCIgX" \
+"QogICAgICAgIHBsYWNlc1sic3lzdGVtMSJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJ5b3UgbGFuZCBvbiBhIGxhbmRpbmcgcGFkLiIKICAgICAgICBwLmNob2" \
+"ljZXMgPSBbICdjaXR5JywgJ3NoaXAnIF0KICAgICAgICBwLmNob2ljZXRleHQgPSAidmlzaXQgbG9uZSBidXQgaW5oYWJpdGF0ZWQgcGxhbmV0IHgiCiAgICAgICAgcGxhY2VzWyJsb25lcGxhbmV" \
+"0Il0gPSBwCgogICAgICAgIHAgPSBQbGFjZSgpCiAgICAgICAgcC50ZXh0ID0gInlvdSBoZWFkIHRvIHRoZSB0aXRhbiBjb2xvbnksXG4gYnV0IHlvdXIgZ2V0aW5nIHVudXN1YWwgcmVhZGluZ3Mu" \
+"Li4gYXMgeW91IGxhbmQgeW91IHJlYWxpemUgdGhhdFxuIGl0IHdhcyBkZXN0cm95ZWQuIgogICAgICAgIHAuY2hvaWNldGV4dCA9ICJnbyB0byB0aXRhbiBjb2xvbnkiCiAgICAgICAgcC5jaG9pY" \
+"2VzID0gWyAidGl0YW4xIiwgInNoaXAiIF0KICAgICAgICBwbGFjZXNbInRpdGFuIl0gPSBwCiAgICAgICAgcCA9IFBsYWNlKCk7IHAuY2hvaWNldGV4dCA9ICJmaW5kIG91dCB3aGF0IGhhcHBlbm" \
+"VkIHgiOyBwbGFjZXNbInRpdGFuMSJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAuY2hvaWNldGV4dCA9ICJsZWF2ZSBzb2xhciBzeXN0ZW0iCiAgICAgICAgcC5jaG9pY2VzID0" \
+"gWyAic3lzdGVtMSIsICJzeXN0ZW0yIiwgInN5c3RlbTMiLCAic3lzdGVtNCIsICJzeXN0ZW01IiwgImVhcnRoIiBdCiAgICAgICAgcGxhY2VzWyJsZWF2ZXN5c3RlbSJdID0gcAoKICAgICAgICBw" \
+"ID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJjb29yZGluYXRlcyBzZXQsIHRocnVzdGVycyBmdW5jdGlvbmFsLiAgYmxhc3Qgb2ZmIVxuLi4uLi4uLi4uLi4uIgogICAgICAgIHAuY2hvaWNld" \
+"GV4dCA9ICJnbyB0byBzeXN0ZW0gMiA8LS0iCiAgICAgICAgcC5jaG9pY2VzID0gWyAiYWJhbmRvbmVkX291dHBvc3QiLCAibGlmZWxlc3NwbGFuZXQiIF0KICAgICAgICBwbGFjZXNbInN5c3RlbT" \
+"IiXSA9IHAKICAgICAgICBwID0gUGxhY2UoKTsgcC5jaG9pY2V0ZXh0ID0gImdvIHRvIHN5c3RlbSAzIHgiOyBwbGFjZXNbInN5c3RlbTMiXSA9IHAKICAgICAgICBwID0gUGxhY2UoKTsgcC5jaG9" \
+"pY2V0ZXh0ID0gImdvIHRvIHN5c3RlbSA0IHgiOyBwbGFjZXNbInN5c3RlbTQiXSA9IHAKICAgICAgICBwID0gUGxhY2UoKTsgcC5jaG9pY2V0ZXh0ID0gImdvIHRvIHN5c3RlbSA1IHgiOyBwbGFj" \
+"ZXNbInN5c3RlbTUiXSA9IHAKICAgICAgCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAiV2VsY29tZSB0byB0aGUgYXN0ZXJvaWQgYmVsdCBvdXRwb3N0LiAgTG90cyBvZiB0c" \
+"mFkaW5nIGdvZXMgb24gaGVyZSEiCiAgICAgICAgcC5jaG9pY2VzID0gWyAic2hpcCIsICJ0cmFkZXN0YXRpb24iIF0KICAgICAgICBwLmNob2ljZXRleHQgPSAiZ28gdG8gYXN0ZXJvaWQgYmVsdC" \
+"Aod2lsbCBlcmFzZSBwcm9ncmVzISkiCiAgICAgICAgcGxhY2VzWyJhc3Rlcm9pZGJlbHQiXSA9IHAKICAgICAgICBwID0gUGxhY2UoKTsgcC5jaG9pY2V0ZXh0ID0gImdvIHRvIHRyYWRlIHN0YXR" \
+"pb24geCI7IHBsYWNlc1sidHJhZGVzdGF0aW9uIl0gPSBwCgogICAgICAgIHAgPSBQbGFjZSgpCiAgICAgICAgcC50ZXh0ID0gIllvdSB2aXNpdCB5b3VyIGZhbWlseS4gWW91IGhhdmUgYSB3b25k" \
+"ZXJmdWwgdGltZSEiCiAgICAgICAgcC5jaG9pY2VzID0gWyAic2hpcCIsICJlYXJ0aF9yZWxheCIgXQogICAgICAgIHAuY2hvaWNldGV4dCA9ICJ2aXNpdCBmYW1pbHkiCiAgICAgICAgcGxhY2VzW" \
+"yJlYXJ0aF9mYW1pbHkiXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAieW91IGxhbmQgaW4gYSBwaWxlIG9mIHJ1YmJsZSB0aGF0IHVzZWQgdG8gYmUgYSBsYW5kaW" \
+"5nIHBhZC5cblNvbWV0aGluZ3Mgbm90IHJpZ2h0LCB0aGVyZSBzaG91bGQgYmUgbW9yZSBwZW9wbGUuIgogICAgICAgIHAuY2hvaWNlcyA9IFsgImxpZmVsZXNzcGxhbmV0X2NpdHkiLCAic2hpcCI" \
+"gXQogICAgICAgIHAuY2hvaWNldGV4dCA9ICJ2aXNpdCBsaWZlbGVzcyBwbGFuZXQiCiAgICAgICAgcGxhY2VzWyJsaWZlbGVzc3BsYW5ldCJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAg" \
+"ICAgIHAudGV4dCA9ICJ5b3UgZ28gdG8gdGhlIGFiYW5kb25lZCBjaXR5XG55b3UgcGF0IHlvdXIgYmVsdCB0byBtYWtlIHN1cmUgeW91IHBsYXNtYSBibGFzdGVyIGlzIHRoZXJlLCBpdCBpcywge" \
+"W91IGhlYWQgZm9yIHRoZSBjaXR5LlxuICAgIAlUaW1lIHBhc3Nlcy4uLlxuICAgIAkJVGltZSBwYXNzZXMuLi5cbnlvdSBmaW5hbGx5IGdldCB0aGVyZSEgSXRzIHNvLi4uIEVtcHR5LiAgWW91IH" \
+"N1ZGRlbmx5IGhlYXIgc29tZXRoaW5nISIKICAgICAgICBwLmNob2ljZXMgPSBbICJncmFiYmxhc3RlciIsICJrZWVwd2Fsa2luZyIgXQogICAgICAgIHAuY2hvaWNldGV4dCA9ICJnbyB0byB0aGU" \
+"gYWJhbmRvbmVkIGNpdHkiCiAgICAgICAgcGxhY2VzWyJsaWZlbGVzc3BsYW5ldF9jaXR5Il0gPSBwCiAgICAgICAgcCA9IFBsYWNlKCk7IHAudGV4dCA9ICIiOyBwLmNob2ljZXRleHQgPSAiZ3Jh" \
+"YiB5b3VyIHBsYXNtYSBibGFzdGVyIGFuZCBrZWVwIHdhbGtpbmciOyBwbGFjZXNbImdyYWJibGFzdGVyIl0gPSBwCiAgICAgICAgcCA9IFBsYWNlKCk7IHAudGV4dCA9ICIiOyBwLmNob2ljZXRle" \
+"HQgPSAia2VlcCB3YWxraW5nIjsgcGxhY2VzWyJrZWVwd2Fsa2luZyJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJ5b3UgZ28gdG8gdGhlIGNpdHkuICBpdHMgYS" \
+"ByaXRtZW4gY2l0eS5cbnlvdSBnbyBjaGVrIGludG8gYSBob3RlbC4gIHRoZW4gd2hhdCBkbyB5b3UgZG8/IgogICAgICAgIHAuY2hvaWNlcyA9IFsgImNpdHlfc2thdGluZyIsICJjaXR5X21ha2V" \
+"mcmllbmRzIiwgImNpdHlfb3B0aW9uMyIsICJjaXR5X29wdGlvbjQiIF0KICAgICAgICBwLmNob2ljZXRleHQgPSAiZ28gdG8gdGhlIGNpdHkiCiAgICAgICAgcGxhY2VzWyJjaXR5Il0gPSBwCiAg" \
+"ICAgICAgcCA9IFBsYWNlKCk7IHAudGV4dCA9ICJZb3Ugd2VudCBza2F0aW5nLiBUaGF0IHdhcyBmdW4hIjsgcC5jaG9pY2V0ZXh0ID0gImdvIHNrYXRpbmciOyBwbGFjZXNbImNpdHlfc2thdGluZ" \
+"yJdID0gcAogICAgICAgIHAgPSBQbGFjZSgpOyBwLnRleHQgPSAiWW91IG1hZGUgc29tZSBtb3JlIGZyaWVuZHMuIEdvb2QgZm9yIHlvdSEiOyBwLmNob2ljZXRleHQgPSAibWFrZSBzb21lIGZyaW" \
+"VuZHMiOyBwbGFjZXNbImNpdHlfbWFrZWZyaWVuZHMiXSA9IHAKICAgICAgICBwID0gUGxhY2UoKTsgcC50ZXh0ID0gIm9wdGlvbjMiOyBwLmNob2ljZXRleHQgPSAib3B0aW9uMyI7IHBsYWNlc1s" \
+"iY2l0eV9vcHRpb24zIl0gPSBwCiAgICAgICAgcCA9IFBsYWNlKCk7IHAudGV4dCA9ICJvcHRpb240IjsgcC5jaG9pY2V0ZXh0ID0gIm9wdGlvbjQiOyBwbGFjZXNbImNpdHlfb3B0aW9uNCJdID0g" \
+"cAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJ5b3UgcmVhZCB0aGUgcGFwZXIsIGl0cyB0b3JuIHByZXR0eSBiYWRseSBidXQgeW91IGNhbiBtYWtlIG91dCBzb21ldGhpb" \
+"mcuLi5cbnBhc3N3b3JkIDc0My4gIGhtbW1tbS4uLiBhIHBhc3N3b3JkLCBidXQgZm9yIHdoYXQ/IgogICAgICAgIHAuY2hvaWNldGV4dCA9ICJwaWNrIHVwIHBhcGVyIgogICAgICAgIHAuY2hvaW" \
+"NlcyA9IFsid2Fsa19vbl9vbmUiXQogICAgICAgIHBsYWNlc1sicGlja191cF9wYXBlciJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICIgeW91IG9wZW4gdGhlIGR" \
+"vb3IhICB0aGVyZSBpcyBsb3RzIG9mIHN0dWYgaW5zaWRlIVxueW91IHdvbiBvbmUgb2YgdGhlIHdheXMgdG8gd2luISIKICAgICAgICBwLmNob2ljZXRleHQgPSAidW5sb2NrIGRvb3IiCiAgICAg" \
+"ICAgcGxhY2VzWyJ1bmxvY2tfb25lIl0gPSBwCgogICAgICAgIHAgPSBQbGFjZSgpCiAgICAgICAgcC50ZXh0ID0gInlvdSBrZWVwIHdhbGtpbmcsIHlvdSBjb21lIHRvIGEgc2VhbGQgZG9vci4gJ" \
+"3Bhc3N3b3JkPycgaXQgYXNrcyB5b3UuXG50eXBlIGluIHRoZSBwYXNzd29yZCEiCiAgICAgICAgcC5jaG9pY2V0ZXh0ID0gIndhbGsgb24iCiAgICAgICAgcC5jaG9pY2VzID0gWyAiYmxhbmsiIF" \
+"0KICAgICAgICBwLnBhc3N3b3JkID0gVHJ1ZQogICAgICAgIHBsYWNlc1sid2Fsa19vbl9vbmUiXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAieW91IGxhbmQgaW4" \
+"gYSBwaWxlIG9mIHJ1YmJsZSB0aGF0IHVzZWQgdG8gYmUgYSBsYW5kaW5nIHBhZC5cblNvbWV0aGluZ3Mgbm90IHJpZ2h0LCB0aGVyZSBzaG91bGQgYmUgbW9yZSBwZW9wbGUuIgogICAgICAgIHAu" \
+"Y2hvaWNldGV4dCA9ICJ2aXNpdCBsaWZlbGVzcyBwbGFuZXQiCiAgICAgICAgcC5jaG9pY2VzID0gWyAiYWJhbmRvbmVkX2NpdHkiLCAic2hpcCIgXQogICAgICAgIHBsYWNlc1sibGlmZWxlc3Nwb" \
+"GFuZXQiXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAiZ28gdG8gdGhlIGFiYW5kb25lZCBjaXR5XG55b3UgcGF0IHlvdXIgYmVsdCB0byBtYWtlIHN1cmUgeW91IH" \
+"BsYXNtYSBibGFzdGVyIGlzIHRoZXJlLCBpdCBpcywgeW91IGhlYWQgZm9yIHRoZSBjaXR5LlxuICAgVGltZSBwYXNzZXMuLi5cbiAgICAgIFRpbWUgcGFzc2VzLi4uXG4gICAgeW91IGZpbmFsbHk" \
+"gZ2V0IHRoZXJlISBJdHMgc28uLi4gRW1wdHkuICBZb3Ugc3VkZGVubHkgaGVhciBzb21ldGhpbmchIgogICAgICAgIHAuY2hvaWNldGV4dCA9ICJnbyB0byB0aGUgYWJhbmRvbmVkIGNpdHkiCiAg" \
+"ICAgICAgcC5jaG9pY2VzID0gWyAiZ3JhYl9ibGFzdGVyIiwgImtlZXBfd2Fsa2luZyIgXQogICAgICAgIHBsYWNlc1siYWJhbmRvbmVkX2NpdHkiXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKI" \
+"CAgICAgICBwLnRleHQgPSAieW91IGtlZXAgd2Fsa2luZy4gIHRoZSBzb3VuZCBvZiBHQkYgQmF0dGxlIHNoaXBzIGZpbGwgdGhlIGFpci5cbgl5b3Ugd29uZGVyIGlmIGFueSBmbG9yYSBvciBmYX" \
+"VuYSBsaXZlIG9uIHRoaXMgZGVzb2xhdGUgcGxhbmV0LiB0aGUgdGltZSBpcyAxMTozMFxuCQkJdGltZSBwYXNzZXMuLi5cbgkJCQl0aW1lIHBhc3Nlcy4uLlxuCQkJCQl0aW1lIHBhc3Nlcy4uLlx" \
+"uCXRpbWUgcGFzc2VzLi4uIHlvdSBjaGVjayB5b3VyIHdhdGNoIHRvIHNlZSBob3cgbG9uZyBpdHMgYmVlbiwgMzAgbWludXRlLlxuCQkJCQkJCXRpbWUgcGFzc2VzLi4uXG4JCXRpbWUgcGFzc2Vz" \
+"Li4uXG4JCQkJCQkJCQl0aW1lIHBhc3Nlcy4uLlxuCXlvdSBmYW5hbGx5IGdldCBzb21lIHdoZXJlLiAgaXRzIDE6MjcuICB5b3UgZ28gaW4uICBhIHBhcGVyIGlzIG9uIHRoZSBmbG9vci4iCiAgI" \
+"CAgICAgcC5jaG9pY2V0ZXh0ID0gImtlZXAgb24gd2Fsa2luZyIKICAgICAgICBwLmNob2ljZXMgPSBbICJwaWNrX3VwX3BhcGVyIiwgIndhbGtfb25fb25lIiBdCiAgICAgICAgcGxhY2VzWyJrZW" \
+"VwX2V4cGxvcmluZ19vbmUiXSA9IHAKCiAgICAgICAgcCA9IFBsYWNlKCkKICAgICAgICBwLnRleHQgPSAieW91IGtlZXAgd2Fsa2luZywgeW91IGhhdmUgdGhlIGZlZWxpbmcgeW91ciBiZWluZyB" \
+"3YXRjaGVkLi4uXG5TdWRkZW5seSB0aHJlZSBwZW9wbGUganVtcCBvdXQgaW4gZnJvbnQgb2YgeW91IGFuZCBvcGVuIGZpcmUhXG5Zb3UgZ3JhYiBmb3IgeW91ciBibGFzdGVyIGJ1dCBpdHMgdG8g" \
+"bGF0ZSEgIFlvdSBmYWxsIHRvIHRoZSBncm91bmQgZGVhZC5cbgkJWW91IGhhdmUgZGllZC4iCiAgICAgICAgcC5jaG9pY2V0ZXh0ID0gImtlZXAgd2Fsa2luZyIKICAgICAgICBwbGFjZXNbImtlZ" \
+"XBfd2Fsa2luZyJdID0gcAoKICAgICAgICBwID0gUGxhY2UoKQogICAgICAgIHAudGV4dCA9ICJpdHMgMTE6MzAgYXQgMTI6MDAgYSBzaGlwIGxhbmRzIGFuZCBhIHNxdWFkIGdldHMgb3V0LFxueW" \
+"91IHRlbGwgdGhlIHNxdWFkIHdoYXQgaGFwcGVuZCwgaXRzIDEyOjExLiIKICAgICAgICBwLmNob2ljZXMgPSBbICJzaGlwIiwgInN5c3RlbTIiIF0KICAgICAgICBwLmNob2ljZXRleHQgPSAid2F" \
+"pdCBmb3IgYmFja3VwIgogICAgICAgIHBsYWNlc1sid2FpdF9mb3JfYmFja3VwIl0gPSBwCgogICAgICAgIHAgPSBQbGFjZSgpCiAgICAgICAgcC50ZXh0ID0gInlvdSBrZWVwIHdhbGtpbmcsIHlv" \
+"dSBoYXZlIHRoZSBmZWVsaW5nIHlvdXIgYmVpbmcgd2F0Y2hlZC4uLlxuU3VkZGVubHkgdGhyZWUgcGVvcGxlIGp1bXAgb3V0IGluIGZyb250IG9mIHlvdSBhbmQgb3BlbiBmaXJlISAgWW91IGRpd" \
+"mUgZm9yIGNvdmVyIGFuZCByZXR1cm4gZmlyZSFcbllvdSBjb21lIG91dCBmcm9tIHlvdXIgY292ZXIgYW5kIGNvbnRhY3QgR0JGIChHYWxhY3RpYyBCYXR0bGUgRmxlZXQpIGFuZCBhc2sgZm9yIG" \
+"JhY2t1cC4iCiAgICAgICAgcC5jaG9pY2V0ZXh0ID0gImdyYWIgeW91ciBwbGFzbWEgYmxhc3RlciBhbmQga2VlcCB3YWxraW5nIgogICAgICAgIHAuY2hvaWNlcyA9IFsgIndhaXRfZm9yX2JhY2t" \
+"1cCIsICJrZWVwX2V4cGxvcmluZ19vbmUiLCAic2hpcCIgXQogICAgICAgIHBsYWNlc1siZ3JhYl9ibGFzdGVyIl0gPSBwCgogICAgICAgIHAgPSBQbGFjZSgpCiAgICAgICAgcC50ZXh0ID0gInlv" \
+"dSBoZWFkIHRvIHRoZSBhYmFuZG9uZWQgb3V0cG9zdC5cbidIbW1tbW0gdGhlIHNlbnNvcnMgZ2V0aW5nIHVudXN1YWwgcmVhZGluZ3MuLi4nXG5zdWRkZW5seSBhIHNxdWFkIG9mIHR5bG9uIGRpc" \
+"3J1cHRlcnMgYXBwZWFyIVxubHVja2lseSB0aGVyZSBzaGlsZWRzIGFyZSBubyBtYWNoIGZvciB5b3VyIHBob3RvbiB0b3JwZWRvZXMuXG55b3UgZ2V0IHRvIHRoZSBhYmFuZG9uZWQgb3V0cG9zdC" \
+"B0byBmaW5kIGl0cyBhIGJ1bmNoIG9mIHJ1YmJsZS4iCiAgICAgICAgcC5jaG9pY2V0ZXh0ID0gImdvIHRvIGFiYW5kb25lZCBvdXRwb3N0IgogICAgICAgIHAuY2hvaWNlcyA9IFsgImxpZmVsZXN" \
+"zcGxhbmV0IiwgImxlYXZlc3lzdGVtIiBdCiAgICAgICAgcGxhY2VzWyJhYmFuZG9uZWRfb3V0cG9zdCJdID0gcAoKICAgICAgICBwbGFjZXNbImN1cnJlbnQiXSA9ICJzeXN0ZW0xIgogICAgICAg" \
+"IHBsYWNlc1siZGVhZCJdID0gRmFsc2UKICAgICAgICByZXR1cm4gcGxhY2VzCgogICAgZGVmIF9zaG93X2Nob2ljZXMocGxhY2VzKToKICAgICAgICBjdXJyZW50ID0gcGxhY2VzW3BsYWNlc1snY" \
+"3VycmVudCddXQogICAgICAgIHByaW50KGN1cnJlbnQudGV4dCkKICAgICAgICBjb3VudCA9IDEKICAgICAgICBmb3IgY2hvaWNlIGluIGN1cnJlbnQuY2hvaWNlczoKICAgICAgICAgICAgcHJpbn" \
+"QoIiglZCkgJXMiICUgKGNvdW50LCBwbGFjZXNbY2hvaWNlXS5jaG9pY2V0ZXh0KSkKICAgICAgICAgICAgY291bnQgKz0gMQoKICAgIGRlZiBfcHJvY2VzcyhwbGFjZXMsdCk6CiAgICAgICAgbmV" \
+"3cGxhY2UgPSBwbGFjZXNbcGxhY2VzWyJjdXJyZW50Il1dLmNob2ljZXNbaW50KHQpLTFdCiAgICAgICAgaWYgbmV3cGxhY2UgPT0gImtlZXBfd2Fsa2luZyI6CiAgICAgICAgICAgIHBsYWNlc1si" \
+"ZGVhZCJdID0gVHJ1ZQogICAgICAgIGlmIGxlbihwbGFjZXNbbmV3cGxhY2VdLmNob2ljZXMpID4gMDoKICAgICAgICAgICAgcGxhY2VzWyJjdXJyZW50Il0gPSBuZXdwbGFjZQogICAgICAgIGVsc" \
+"2U6CiAgICAgICAgICAgIHByaW50KHBsYWNlc1tuZXdwbGFjZV0udGV4dCkKICAgICAgICByZXR1cm4gcGxhY2VzCgogICAgZGVmIF9ydW4oKToKICAgICAgICBwbGFjZXMgPSBfaW5pdF9wbGFjZX" \
+"MoKQogICAgICAgIHdoaWxlIFRydWU6CiAgICAgICAgICAgIF9zaG93X2Nob2ljZXMocGxhY2VzKQogICAgICAgICAgICBjdXJyZW50ID0gcGxhY2VzW3BsYWNlc1siY3VycmVudCJdXQogICAgICA" \
+"gICAgICB0ZXh0aW5wdXQgPSBzdHIoaW5wdXQoIlxuYWxsZW5AZ2JmX2V4cGxvcmVyOn4+ICIpKQogICAgICAgICAgICBpZiB0ZXh0aW5wdXQgaXMgbm90ICIiOgogICAgICAgICAgICAgICAgaWYg" \
+"Y3VycmVudC5wYXNzd29yZDoKICAgICAgICAgICAgICAgICAgICBpZiB0ZXh0aW5wdXQgPT0gIjc0MyI6CiAgICAgICAgICAgICAgICAgICAgICAgIHBsYWNlc1siY3VycmVudCJdID0gInVubG9ja" \
+"19vbmUiCiAgICAgICAgICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICAgICAgICAgcHJpbnQoIllvdSBlbnRlciAnJXMnIiAlIHRleHRpbnB1dCkKICAgICAgICAgICAgICAgICAgIC" \
+"AgICAgcHJpbnQoIlRoZSBkb29yIHdvbid0IGJ1ZGdlLiIpCiAgICAgICAgICAgICAgICAgICAgICAgIHBsYWNlc1sid2Fsa19vbl9vbmUiXS50ZXh0ID0gIidwYXNzd29yZD8nIGl0IGFza3MgeW9" \
+"1IgogICAgICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICAgICAgICAgIHQgPSBpbnQodGV4dGlucHV0KQogICAgICAgICAgICAgICAgICAg" \
+"ICAgICBwbGFjZXMgPSBfcHJvY2VzcyhwbGFjZXMsIHQpCiAgICAgICAgICAgICAgICAgICAgZXhjZXB0OgogICAgICAgICAgICAgICAgICAgICAgICBwcmludCgiSSBkb24ndCBrbm93ICclcycuI" \
+"FBpY2sgYSBudW1iZXIuIiAlIHRleHRpbnB1dCkKICAgICAgICAgICAgaWYgcGxhY2VzWyJkZWFkIl06CiAgICAgICAgICAgICAgICBwcmludCgiR29vZCBnYW1lLiIpCiAgICAgICAgICAgICAgIC" \
+"BicmVhawoKICAgIHRyeToKICAgICAgICBfcnVuKCkKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICBwcmludChlKQogICAgICAgIHByaW50KCJBbGxlbidzIGNvbXB1dGVyIGNyYXN" \
+"oZWQuIik="
+eval(compile(base64.b64decode(game_function), "allen_game", "exec"))
+# Loads the function.  Invoke with: allen_game()
 
 if __name__ == "__main__":
     g = Globals()

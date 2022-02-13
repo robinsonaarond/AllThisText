@@ -32,11 +32,17 @@ class Globals():
                 self.credits_peon = p()
                 self.credits_banker = p()
                 self.credits_maniac = p()
+                self.seeing_entertained = p()
+                self.hearing_entertained = p()
+                self.feeling_entertained = p()
                 self.robot_picture = p()
+                self.kill_robot = p()
+                self.game_end = p()
 
                 # Custom options for properties
                 self.credits_banker.points = 4
                 self.credits_maniac.points = 5
+                self.game_end.points = 10
 
         self.moves            = 0
         self.points           = Points()
@@ -615,11 +621,12 @@ def end_game(g):
             elif end_turn_count == 8:
                 print_desc("<p><n>Your |g.item['supervisor'].name|'s legs fail.  He crumples to the floor and looks up with sad resignation.  \"That's OK buddy, you tried,\" he says.")
             elif end_turn_count == 9:
-                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.<n><p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><n>The |g.item['belt'].name| in front of you shuts down suddenly, but the song in your mind is louder than ever.<p><p><n>A hiss of depressurization, and you feel the kiss of cold air from outside.<p><n>Your |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p><n>As the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p><n>There is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p>")
+                print_desc("<p>You put the |g.item['circuit'].name| into their |g.item['slots'].name| and push the DESTROY SWITCH.<n><p><p>A low rumble shakes the floor.  You hear the shriek of tearing metal.  Chunks of concrete and glass fall from high above, blanketing people, conveyor belts, widgets.<p><p><n>The |g.item['belt'].name| in front of you shuts down suddenly, but the song in your mind is louder than ever.<p><p><p><n>A hiss of depressurization, and you feel the kiss of cold air from outside.<p><p><n>Your |g.item['supervisor'].name| lies flat on his back, each breath rattling in his broken chest.<p><p<p><p>>As the dust clears, you see the ceiling is gone.  The moon is high and full in the night sky.<p><p><n>There is still a fading light in your |g.item['supervisor'].name|'s eyes, which are now wide, and full of wonder and gratitude.<p><p><p><p>")
                 g.accidentfreedays = 0
                 static_images(g,"moon")
                 animate_stars()
-                print_desc("As the song dies away, and you gaze at the moon in the sky, you realize you've reached...<p><p><n><n>THE END<n><p>")
+                print_desc("As the song dies away, and you gaze at the moon in the sky, you realize you've reached...<p><p><p><n><n>THE END<n><p>")
+                g.points.game_end.done = True
                 process_action(g, "exit")
             
 
@@ -727,7 +734,7 @@ def process_action(g,textinput):
     
     def __action_start(g,textinput,action):
         if len(textinput.split()) > 1:
-            if g.player.room == "factory":
+            if g.player.room == "factory" and any(x in textinput for x in ["belt","conv"]):
                 if "picture" in g.rooms["factory"].items and g.item['picture'].visible == False:
                     print_desc("<p><n>As the belt starts to roll, a small |g.item['picture'].name| suddenly pops out, gives a little twirl mid-air, and slowly flutters down to the floor.")
                     g.item['picture'].description = "It is a picture of the moon.  It has been creased slightly."
@@ -738,16 +745,14 @@ def process_action(g,textinput):
                 g.rooms[g.player.room].items.append('widget')
                 g.item['widget'].visible = True
                 g.rooms[g.player.room].running = True
-            elif g.player.room == "pod":
-                __action_power(g,textinput,action)
+            elif g.player.room == "pod" and "screen" in textinput:
+                #__action_power(g,textinput,action)
+                print("You turn on the screen.")
+                g.screenon = True
             else:
                 print("There's nothing here to start.")
         else:
             print(choice(["What do you want me to start?","You want to start something?"]))
-
-    def __action_power(g,textinput,action):
-        print("You turn on the screen.")
-        g.screenon = True
     
     def __action_go(g,textinput,action):
         # We actually only want exact matches for this action
@@ -792,7 +797,7 @@ def process_action(g,textinput):
                     g.points.eat_red_pill.done = True
                 elif item.id == "bluepill":
                     print(bcolors.CYAN)
-                    print_desc("W H O A<n>.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?<n><p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"<n><p>A panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.<n><p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.<n><p>It's a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.<n><p>The effects of the |g.item['bluepill'].name| are wearing off.<n><p>...")
+                    print_desc("W H O A<n>.<p>..<p>...<p>Wow seriously dude.  You feel GREAT, just, like, super fuzzy but chill?  And you're all, sort of, ITCHY, but in your TEETH?<n><p><p>Your |g.item['supervisor'].name| makes that \"hang loose\" gesture and leans back.  \"Hey buddy, check this out.\"<n><p><p<p><p>panel on his chest slides open.  There are three |g.item['circuit'].name|S that look like they might fit in some |g.item['slots'].name| next to a DESTROY SWITCH.<n><p><p>They are labeled FEELINGS, SENSE OF SELF, and WILL TO LIVE.<n><p><p<p><p>'s a good thing you're high on |g.item['bluepill'].name|, because removing these |g.item['circuit'].name| from your |g.item['supervisor'].name|'s chest will probably kill him.<n><p><p>The effects of the |g.item['bluepill'].name| are wearing off.<n><p>...")
                     print(bcolors.ENDC)
                     print_desc("<p>..<p>.<p>Uh oh.")
                     g.item['feelings'].visible = True
@@ -848,6 +853,10 @@ def process_action(g,textinput):
             "You went to Las Vegas in a $20,000 car and came back in a $200,000 Greyhound bus.",
             "You sat around and played solitaire all weekend.",
             "This weekend you hung out at the mall, ate junk food, and made your mother ashamed of you.",
+            "An aspiring capitalist tycoon pops by his colleague's office down the hall to discuss potential meal plans",
+            "A young extraterrestrial, separated from its family and stranded on Earth, finds friendship with a boy in a wheelchair, who really likes french fries for some reason.",
+            "In a world where water is controlled by the Protectorate, some orphan/inmates run away from their orphanage jail with a glowing ball to break a dam and free the water.",
+            "You watch some dots slowly populate on your screen. Just a few more now...",
             ]
         listening_entertainments = [ 
             "The soothing whir of the contralto female auto-generated voice both filled and thrilled you.  It was a TRIUMPH.",
@@ -868,6 +877,7 @@ def process_action(g,textinput):
                     print_desc("<p>.<p>..<p><p>")
                     print(choice(seeing_entertainments))
                     print_desc("<p>..<p>.<p>Your ENTERTAINMENT is complete.<p>")
+                    g.points.seeing_entertained.done = True
                 else:
                     _out_of_credits()
             elif c == 2:
@@ -877,6 +887,7 @@ def process_action(g,textinput):
                     print_desc("<p>.<p>..<p><p>")
                     print(choice(listening_entertainments))
                     print_desc("<p>..<p>.<p>Your ENTERTAINMENT is complete.<p>")
+                    g.points.hearing_entertained.done = True
                 else:
                     _out_of_credits()
             elif c == 3:
@@ -885,13 +896,14 @@ def process_action(g,textinput):
                     print_desc("<p>.<p>..<p><p>")
                     print("Whoa.")
                     print_desc("<p>..<p>.<p>Your ENTERTAINMENT is complete.<p>")
+                    g.points.feeling_entertained.done = True
                 else:
                     _out_of_credits()
             elif c == 4:
                 if g.player.credits >= 25:
                     g.player.credits -= 25
                     if g.item['picture'].damaged == True:
-                        print_desc("You place |g.item['picture'].name| in front of the screen, and a bright blue beam shoots out and scans the image.<p>.<p>..<p>The light seems to be struggling on the damaged portion of the picture.  Now something completely different is coming up:<p><p>")
+                        print_desc("You place |g.item['picture'].name| in front of the screen, and a bright blue beam shoots out and scans the image.<p>.<p>..<p>The light seems to be struggling on the damaged portion of the picture.  Now something completely different is coming up:<p><p><n><p><p>")
                         allen_game()
                     else:
                         print_desc("You place |g.item['picture'].name| in front of the screen, and a bright blue beam shoots out and scans the image.<p>Here it is:")
@@ -942,7 +954,7 @@ def process_action(g,textinput):
                             time.sleep(g.sleep_interval)
                     except Exception as e:
                         print("You must select a number from 1 to 6")
-                        print(e)
+                        #print(e)
                         time.sleep(g.sleep_interval)
                 g.screenon = False
             else:
@@ -994,15 +1006,9 @@ def process_action(g,textinput):
         },
         {
             "id"            : "start",
-            "matches"       : [ "start" ],
-            "description"   : "Start the conveyor belt.",
+            "matches"       : [ "start", "turn on", "power on", "turn", "power" ],
+            "description"   : "For starting stuff.",
             "run"           : __action_start
-        },
-        {
-            "id"            : "power",
-            "matches"       : [ "turn on", "power on", "turn", "power" ],
-            "description"   : "Start the SCREEN.",
-            "run"           : __action_power
         },
         {
             "id"            : "count",
@@ -1030,8 +1036,8 @@ def process_action(g,textinput):
         },
         {
             "id"            : "quit",
-            "matches"       : [ "quit" ],
-            "description"   : "Try to leave the game, the wrong way.",
+            "matches"       : [ "quit", "logout" ],
+            "description"   : "Try to leave the game, the wrong way. (The right way is 'exit')",
             "run"           : __action_quit
         },
         {

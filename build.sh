@@ -5,5 +5,5 @@
 
 rm -rf build dist AllThisText.spec
 pyinstaller --onefile AllThisText.py
-cp dist/AllThisText .
+cp dist/AllThisText AllThisText-Linux
 rm -rf build dist AllThisText.spec

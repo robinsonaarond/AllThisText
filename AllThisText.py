@@ -499,7 +499,7 @@ def get_item(textinput):
         return item
 
 def get_action(g, textinput):
-    if textinput is not "":
+    if textinput != "":
         action_exists = False
         for action in sorted(list(g.actions.keys()), key=len, reverse=True):
             for match in g.actions[action].matches:
@@ -807,6 +807,13 @@ def process_action(g,textinput):
                     print("Nothing happens.")
             else:
                 print("You aren't carrying it.")
+
+    def __action_speed(g,textinput,action):
+        speed_amount = ' '.join(textinput.split()[1:])
+        if speed_amount in ('0','1','2'):
+            g.sleep_interval = float(speed_amount)
+        else:
+            print("Only speeds supported are 0, 1, or 2 (Default)")
     
     def __action_count(g,textinput,action):
         item = get_item(' '.join(textinput.split()[1:]))
@@ -1055,6 +1062,12 @@ def process_action(g,textinput):
             "run"           : __action_count
         },
         {
+            "id"            : "speed",
+            "matches"       : [ "speed" ],
+            "description"   : "For those who don't want to wait.  Choose 0, 1, or 2",
+            "run"           : __action_speed
+        },
+        {
             "id"            : "process",
             "matches"       : [ "process" ],
             "description"   : "Work is work is work.",
@@ -1104,7 +1117,7 @@ def process_action(g,textinput):
         },
         {
             "id"            : "screen",
-            "matches"       : [ "screen", "enter", "enter screen", "log into screen", "log in", "press enter" ],
+            "matches"       : [ "screen", "enter", "enter screen", "log into screen", "log in", "press enter", "read screen" ],
             "description"   : "Log into your SCREEN.",
             "run"           : __action_enterscreen
         },

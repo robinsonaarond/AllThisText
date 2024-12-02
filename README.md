@@ -20,4 +20,4 @@ His original music video:
     
 Cathode - Great app for emulating old terminals
     
-http://www.secretgeometry.com/apps/cathode/
+<a href="https://www.jwz.org/blog/2011/01/cathode-vintage-terminal-emulator/" target="_blank">mentioned on jwz</a>
